@@ -33,8 +33,8 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Clientes por canal y subcanal",
   },
   {
-    title: "Empleados",
-    to: "/employees",
+    title: "Vendedores",
+    to: "/sellers",
     icon: Users,
     description: "Vendedores y asignación de rutas",
   },

@@ -9,13 +9,13 @@ import { useBlocksStore } from "@/stores/blocks-store";
 import { useClients } from "@/hooks/use-clients";
 import { pointInPolygon } from "@/lib/geo";
 
-interface EmployeeCoverageMapProps {
+interface SellerCoverageMapProps {
   /** Routes currently assigned (or about to be) — each drawn in its own `route.color`. */
   routes: Route[];
 }
 
 /** Read-only preview: every assigned route's manzanos in its own color, plus their clients. */
-export function EmployeeCoverageMap({ routes }: EmployeeCoverageMapProps) {
+export function SellerCoverageMap({ routes }: SellerCoverageMapProps) {
   const allBlocks = useBlocksStore((s) => s.blocks);
   const { data: clients = [] } = useClients();
 
@@ -69,7 +69,7 @@ export function EmployeeCoverageMap({ routes }: EmployeeCoverageMapProps) {
         <div className="pointer-events-none absolute inset-0 z-[400] flex flex-col items-center justify-center gap-2 bg-background/70 text-center backdrop-blur-sm">
           <MapPinned className="h-8 w-8 text-muted-foreground" />
           <p className="max-w-[240px] text-sm text-muted-foreground">
-            Este empleado aún no tiene rutas asignadas.
+            Este vendedor aún no tiene rutas asignadas.
           </p>
         </div>
       )}

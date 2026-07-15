@@ -82,21 +82,22 @@ export interface RouteInput {
   startDate: string;
 }
 
-export type EmployeeStatus = "active" | "inactive";
+export type SellerStatus = "ACTIVO" | "INACTIVO";
 
 /**
- * Empleado — a salesperson. Their channels/subcanales are NOT stored directly:
- * they're derived from the routes assigned to them (routeIds).
+ * Vendedor (Seller) — a salesperson, as returned by the sellers API:
+ *   { code, name, phone, email, status }
+ * `code` is the unique identifier. `phone` may be null. Channels/subcanales are
+ * NOT stored directly: they're derived from the routes assigned (routeIds), which
+ * is managed by this app and not part of the list API payload.
  */
-export interface Employee {
-  id: string;
-  code: string;
+export interface Seller {
+  /** Unique identifier coming from the sellers API. */
+  code: number;
   name: string;
-  role: string;
   email: string;
-  phone: string;
-  status: EmployeeStatus;
+  phone: string | null;
+  status: SellerStatus;
+  /** App-managed route assignment (not part of the sellers list API). */
   routeIds: string[];
-  createdAt: string;
-  updatedAt: string;
 }

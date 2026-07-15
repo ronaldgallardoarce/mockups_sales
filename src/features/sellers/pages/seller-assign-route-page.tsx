@@ -21,10 +21,11 @@ import { Separator } from "@/components/ui/separator";
 import { ChannelBadge, ColorDot } from "@/components/common/channel-badge";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusBadge } from "@/features/routes/components/status-badge";
-import { useEmployee, useUpdateEmployeeRoutes } from "@/hooks/use-employees";
+import { SellerStatusBadge } from "../components/seller-status-badge";
+import { useSeller, useUpdateSellerRoutes } from "@/hooks/use-sellers";
 import { useRoutes } from "@/hooks/use-routes";
 import { groupSubcanalesByChannel, getChannel, getSubcanal } from "@/data/channels";
-import { EmployeeCoverageMap } from "../components/employee-coverage-map";
+import { SellerCoverageMap } from "../components/seller-coverage-map";
 import { RoutePickerDialog } from "../components/route-picker-dialog";
 
 function initials(name: string) {
@@ -34,20 +35,21 @@ function initials(name: string) {
 const sameSet = (a: string[], b: string[]) =>
   a.length === b.length && [...a].sort().join() === [...b].sort().join();
 
-export function EmployeeAssignRoutePage() {
-  const { id } = useParams<{ id: string }>();
+export function SellerAssignRoutePage() {
+  const { code: codeParam } = useParams<{ code: string }>();
+  const code = codeParam !== undefined ? Number(codeParam) : undefined;
   const navigate = useNavigate();
 
-  const { data: employee, isLoading } = useEmployee(id);
+  const { data: seller, isLoading } = useSeller(code);
   const { data: allRoutes = [] } = useRoutes();
-  const updateRoutes = useUpdateEmployeeRoutes();
+  const updateRoutes = useUpdateSellerRoutes();
 
   const [routeIds, setRouteIds] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
-    if (employee) setRouteIds(employee.routeIds);
-  }, [employee]);
+    if (seller) setRouteIds(seller.routeIds);
+  }, [seller]);
 
   const assignedRoutes = useMemo(
     () => routeIds.map((rid) => allRoutes.find((r) => r.id === rid)).filter((r): r is Route => !!r),
@@ -67,15 +69,15 @@ export function EmployeeAssignRoutePage() {
     [assignedRoutes],
   );
 
-  const dirty = employee ? !sameSet(routeIds, employee.routeIds) : false;
+  const dirty = seller ? !sameSet(routeIds, seller.routeIds) : false;
 
   const addRoute = (route: Route) => setRouteIds((prev) => [...prev, route.id]);
   const removeRoute = (routeId: string) => setRouteIds((prev) => prev.filter((r) => r !== routeId));
 
   const handleSave = async () => {
-    if (!id) return;
-    await updateRoutes.mutateAsync({ id, routeIds });
-    navigate("/employees");
+    if (code === undefined) return;
+    await updateRoutes.mutateAsync({ code, routeIds });
+    navigate("/sellers");
   };
 
   if (isLoading) {
@@ -90,15 +92,15 @@ export function EmployeeAssignRoutePage() {
     );
   }
 
-  if (!employee) {
+  if (!seller) {
     return (
       <EmptyState
         icon={Users}
-        title="Empleado no encontrado"
+        title="Vendedor no encontrado"
         description="Puede que haya sido eliminado."
         action={
-          <Button onClick={() => navigate("/employees")}>
-            <ArrowLeft className="h-4 w-4" /> Volver a empleados
+          <Button onClick={() => navigate("/sellers")}>
+            <ArrowLeft className="h-4 w-4" /> Volver a vendedores
           </Button>
         }
       />
@@ -108,10 +110,10 @@ export function EmployeeAssignRoutePage() {
   return (
     <>
       <PageHeader
-        title={employee.name}
-        description={`${employee.role} · ${employee.code}`}
+        title={seller.name}
+        description={`Vendedor · ${seller.code}`}
       >
-        <Button type="button" variant="outline" onClick={() => navigate("/employees")}>
+        <Button type="button" variant="outline" onClick={() => navigate("/sellers")}>
           <ArrowLeft className="h-4 w-4" /> Volver
         </Button>
         <Button type="button" onClick={handleSave} disabled={!dirty || updateRoutes.isPending}>
@@ -127,21 +129,21 @@ export function EmployeeAssignRoutePage() {
             <CardContent className="space-y-4 p-5">
               <div className="flex items-center gap-3">
                 <Avatar className="h-11 w-11">
-                  <AvatarFallback className="text-sm">{initials(employee.name)}</AvatarFallback>
+                  <AvatarFallback className="text-sm">{initials(seller.name)}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{employee.name}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{employee.code}</p>
+                  <p className="truncate font-semibold">{seller.name}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{seller.code}</p>
                 </div>
-                <StatusBadge status={employee.status} />
+                <SellerStatusBadge status={seller.status} />
               </div>
               <Separator />
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 <p className="flex items-center gap-2">
-                  <Mail className="h-3.5 w-3.5" /> {employee.email}
+                  <Mail className="h-3.5 w-3.5" /> {seller.email}
                 </p>
                 <p className="flex items-center gap-2">
-                  <Phone className="h-3.5 w-3.5" /> {employee.phone}
+                  <Phone className="h-3.5 w-3.5" /> {seller.phone ?? "—"}
                 </p>
               </div>
             </CardContent>
@@ -219,7 +221,7 @@ export function EmployeeAssignRoutePage() {
 
               {assignedRoutes.length === 0 ? (
                 <p className="rounded-lg border border-dashed bg-muted/30 px-3 py-6 text-center text-sm text-muted-foreground">
-                  Este empleado no tiene rutas asignadas.
+                  Este vendedor no tiene rutas asignadas.
                 </p>
               ) : (
                 <ul className="space-y-1.5">
@@ -257,7 +259,7 @@ export function EmployeeAssignRoutePage() {
             Cobertura por ruta — cada color es la ruta asignada
           </div>
           <div className="h-[460px] lg:h-[calc(100%-2rem)]">
-            <EmployeeCoverageMap routes={assignedRoutes} />
+            <SellerCoverageMap routes={assignedRoutes} />
           </div>
         </div>
       </div>

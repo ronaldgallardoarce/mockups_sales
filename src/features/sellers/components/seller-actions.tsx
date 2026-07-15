@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { MapPinned, MoreHorizontal } from "lucide-react";
-import type { Employee } from "@/types";
+import type { Seller } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function EmployeeActions({ employee }: { employee: Employee }) {
+export function SellerActions({ seller }: { seller: Seller }) {
   const navigate = useNavigate();
   return (
     <DropdownMenu>
@@ -19,7 +19,7 @@ export function EmployeeActions({ employee }: { employee: Employee }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => navigate(`/employees/${employee.id}/assign`)}>
+        <DropdownMenuItem onClick={() => navigate(`/sellers/${seller.code}/assign`)}>
           <MapPinned /> Asignar ruta
         </DropdownMenuItem>
       </DropdownMenuContent>

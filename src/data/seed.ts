@@ -1,4 +1,4 @@
-import type { Block, Client, Employee, Polygon, Route } from "@/types";
+import type { Block, Client, Polygon, Route, Seller } from "@/types";
 import { seededRandom } from "@/lib/utils";
 import { TRINIDAD_CENTER, pointInPolygon } from "@/lib/geo";
 import { CHANNELS, SUBCANALES, getSubcanalesByChannel } from "./channels";
@@ -176,16 +176,14 @@ function buildRoutes(): Route[] {
 
 export const SEED_ROUTES: Route[] = buildRoutes();
 
-// ---- Employees --------------------------------------------------------------
-const ROLES = ["Preventista", "Vendedor", "Supervisor de zona", "Repartidor"];
-
-function buildEmployees(): Employee[] {
-  const employees: Employee[] = [];
+// ---- Sellers (Vendedores) --------------------------------------------------
+function buildSellers(): Seller[] {
+  const sellers: Seller[] = [];
   for (let i = 0; i < 24; i++) {
     const first = pick(OWNER_FIRST);
     const last = pick(OWNER_LAST);
     const idx = i + 1;
-    // Most employees carry 1-3 routes; a few start with none (empty state).
+    // Most sellers carry 1-3 routes; a few start with none (empty state).
     const routeIds: string[] = [];
     if (rand() > 0.15) {
       const routeCount = 1 + Math.floor(rand() * 3); // 1..3
@@ -194,21 +192,17 @@ function buildEmployees(): Employee[] {
         if (!routeIds.includes(r.id)) routeIds.push(r.id);
       }
     }
-    const created = new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27)));
-    employees.push({
-      id: `emp_${String(idx).padStart(3, "0")}`,
-      code: `EMP-${String(1000 + idx)}`,
-      name: `${first} ${last}`,
-      role: pick(ROLES),
-      email: `${first.toLowerCase()}.${last.toLowerCase()}@ventas.com`,
-      phone: `+591 ${Math.floor(between(6000000, 7999999))}`,
-      status: rand() < 0.85 ? "active" : "inactive",
+    sellers.push({
+      code: 5000 + idx,
+      name: `${first} ${last}`.toUpperCase(),
+      email: `${first.toLowerCase()}.${last.toLowerCase()}@grupovenado.com`,
+      // The real API returns null for some sellers.
+      phone: rand() < 0.85 ? `+591 ${Math.floor(between(6000000, 7999999))}` : null,
+      status: rand() < 0.85 ? "ACTIVO" : "INACTIVO",
       routeIds,
-      createdAt: created.toISOString(),
-      updatedAt: created.toISOString(),
     });
   }
-  return employees;
+  return sellers;
 }
 
-export const SEED_EMPLOYEES: Employee[] = buildEmployees();
+export const SEED_SELLERS: Seller[] = buildSellers();

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, PencilRuler, RotateCcw, Trash2, Users, X } from "lucide-react";
+import { AlertTriangle, Grid3x3, PencilRuler, RotateCcw, Trash2, Users, X } from "lucide-react";
 import type { LatLng } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -11,12 +11,13 @@ import { BaseMap } from "../components/base-map";
 import { BlocksEditor } from "../components/blocks-editor";
 import { ClientMarkers } from "../components/client-markers";
 import { BlockClientsSheet } from "../components/block-clients-sheet";
+import { GridSubdivideDialog } from "../components/grid-subdivide-dialog";
 import { useBlocksStore } from "@/stores/blocks-store";
 import { useClients } from "@/hooks/use-clients";
 import { countPointsInPolygon, pointInPolygon, polygonsOverlap } from "@/lib/geo";
 
 export function ManageMapPage() {
-  const { blocks, addBlock, updateBlock, removeBlock, resetBlocks } = useBlocksStore();
+  const { blocks, addBlock, addBlocks, updateBlock, removeBlock, resetBlocks } = useBlocksStore();
   const { data: clients = [] } = useClients();
 
   const [showClients, setShowClients] = useState(false);
@@ -24,6 +25,7 @@ export function ManageMapPage() {
   const [editShapeId, setEditShapeId] = useState<string | null>(null);
   const [clientsSheetOpen, setClientsSheetOpen] = useState(false);
   const [toDelete, setToDelete] = useState<string | null>(null);
+  const [subdivideOpen, setSubdivideOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
   const clientPoints = useMemo<LatLng[]>(() => clients.map((c) => [c.lat, c.lng]), [clients]);
@@ -74,11 +76,22 @@ export function ManageMapPage() {
     setSelectedId(block.id);
   };
 
+  const handleSubdivide = (cells: LatLng[][]) => {
+    if (!selected || cells.length === 0) return;
+    removeBlock(selected.id);
+    addBlocks(cells.map((polygon) => ({ polygon })));
+    toast.success("Polígono subdividido", {
+      description: `${cells.length} ${cells.length === 1 ? "manzano creado" : "manzanos creados"}`,
+    });
+    setSubdivideOpen(false);
+    deselect();
+  };
+
   return (
     <>
       <PageHeader
         title="Gestionar Mapa"
-        description="Dibuja manzanos (sectores) para ubicar clientes por zona. Cada manzano muestra cuántos clientes contiene según su ubicación."
+        description="Dibuja manzanos (sectores) para ubicar clientes por zona. Dibuja un polígono grande y subdivídelo en una grilla de manzanos, o crea cada uno por separado."
       >
         <div className="flex h-9 items-center gap-2.5 rounded-md border px-3">
           <Label htmlFor="toggle-clients" className="cursor-pointer text-xs font-normal">
@@ -162,6 +175,14 @@ export function ManageMapPage() {
                     {selectedCount === 1 ? "cliente" : "clientes"}
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => setSubdivideOpen(true)}
+                >
+                  <Grid3x3 className="h-4 w-4" /> Subdividir en grilla
+                </Button>
                 <div className="flex gap-2">
                   <Button
                     size="sm"
@@ -191,6 +212,13 @@ export function ManageMapPage() {
         onOpenChange={setClientsSheetOpen}
         blockId={selected?.id ?? ""}
         clients={clientsInSelected}
+      />
+
+      <GridSubdivideDialog
+        open={subdivideOpen && !!selected}
+        onOpenChange={setSubdivideOpen}
+        polygon={selected?.polygon ?? null}
+        onConfirm={handleSubdivide}
       />
 
       <ConfirmDialog

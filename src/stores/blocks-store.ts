@@ -12,6 +12,8 @@ export interface NewBlockInput {
 interface BlocksState {
   blocks: Block[];
   addBlock: (input: NewBlockInput) => Block;
+  /** Bulk-insert several blocks at once (e.g. a grid subdivision). */
+  addBlocks: (inputs: NewBlockInput[]) => Block[];
   updateBlock: (id: string, patch: Partial<Omit<Block, "id">>) => void;
   removeBlock: (id: string) => void;
   resetBlocks: () => void;
@@ -31,6 +33,16 @@ export const useBlocksStore = create<BlocksState>()(
         };
         set({ blocks: [...get().blocks, block] });
         return block;
+      },
+      addBlocks: (inputs) => {
+        const now = new Date().toISOString();
+        const created: Block[] = inputs.map((input) => ({
+          id: uid("blk"),
+          polygon: input.polygon,
+          createdAt: now,
+        }));
+        set({ blocks: [...get().blocks, ...created] });
+        return created;
       },
       updateBlock: (id, patch) =>
         set({

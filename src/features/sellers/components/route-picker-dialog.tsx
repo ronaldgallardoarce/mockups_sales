@@ -17,7 +17,7 @@ import { StatusBadge } from "@/features/routes/components/status-badge";
 interface RoutePickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Routes not yet assigned to this employee. */
+  /** Routes not yet assigned to this seller. */
   candidates: Route[];
   onPick: (route: Route) => void;
 }
@@ -33,7 +33,7 @@ export function RoutePickerDialog({ open, onOpenChange, candidates, onPick }: Ro
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Asignar ruta</DialogTitle>
-          <DialogDescription>Selecciona una ruta para agregarla a este empleado.</DialogDescription>
+          <DialogDescription>Selecciona una ruta para agregarla a este vendedor.</DialogDescription>
         </DialogHeader>
 
         <div className="relative">

@@ -1,29 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Users, X } from "lucide-react";
-import type { Employee, EmployeeStatus } from "@/types";
+import type { Seller, SellerStatus } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { Pagination } from "@/components/common/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEmployeesPaged } from "@/hooks/use-employees";
-import { EmployeesTable } from "../components/employees-table";
+import { useSellersPaged } from "@/hooks/use-sellers";
+import { SellersTable } from "../components/sellers-table";
 
 const PAGE_SIZE_OPTIONS = [8, 10, 20, 50];
 
-export function EmployeesPage() {
+export function SellersPage() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<EmployeeStatus | "all">("all");
+  const [status, setStatus] = useState<SellerStatus | "all">("all");
   const [pageSize, setPageSize] = useState(8);
   const [page, setPage] = useState(1);
 
   useEffect(() => setPage(1), [search, status, pageSize]);
 
-  const { data, isLoading, isFetching } = useEmployeesPaged({ page, limit: pageSize, status, search });
+  const { data, isLoading, isFetching } = useSellersPaged({ page, limit: pageSize, status, search });
 
   const rows = data?.data ?? [];
   const pagination = data?.pagination;
@@ -42,11 +42,11 @@ export function EmployeesPage() {
     return { start, end };
   }, [page, pageSize, totalItems]);
 
-  const goToAssign = (employee: Employee) => navigate(`/employees/${employee.id}/assign`);
+  const goToAssign = (seller: Seller) => navigate(`/sellers/${seller.code}/assign`);
 
   return (
     <>
-      <PageHeader title="Empleados" description="Vendedores y su asignación de rutas de pre-venta." />
+      <PageHeader title="Vendedores" description="Vendedores y su asignación de rutas de pre-venta." />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
@@ -58,14 +58,14 @@ export function EmployeesPage() {
             className="pl-9"
           />
         </div>
-        <Select value={status} onValueChange={(v) => setStatus(v as EmployeeStatus | "all")}>
+        <Select value={status} onValueChange={(v) => setStatus(v as SellerStatus | "all")}>
           <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="active">Activos</SelectItem>
-            <SelectItem value="inactive">Inactivos</SelectItem>
+            <SelectItem value="ACTIVO">Activos</SelectItem>
+            <SelectItem value="INACTIVO">Inactivos</SelectItem>
           </SelectContent>
         </Select>
         {hasFilters && (
@@ -84,16 +84,16 @@ export function EmployeesPage() {
       {!isLoading && totalItems === 0 ? (
         <EmptyState
           icon={Users}
-          title={hasFilters ? "Sin resultados" : "Aún no hay empleados"}
+          title={hasFilters ? "Sin resultados" : "Aún no hay vendedores"}
           description={
             hasFilters
-              ? "Ajusta la búsqueda o los filtros para encontrar empleados."
-              : "Los empleados registrados aparecerán aquí."
+              ? "Ajusta la búsqueda o los filtros para encontrar vendedores."
+              : "Los vendedores registrados aparecerán aquí."
           }
         />
       ) : (
         <div className={isFetching && !isLoading ? "opacity-70 transition-opacity" : undefined}>
-          <EmployeesTable employees={rows} loading={isLoading} onAssignRoute={goToAssign} />
+          <SellersTable sellers={rows} loading={isLoading} onAssignRoute={goToAssign} />
         </div>
       )}
 
