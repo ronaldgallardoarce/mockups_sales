@@ -19,4 +19,8 @@ export const queryKeys = {
   subcanales: ["subcanales"] as const,
   clients: ["clients"] as const,
   clientsBySubcanales: (ids: string[]) => ["clients", "sub", ...ids] as const,
+  employees: ["employees"] as const,
+  employeesPaged: (params: { page: number; limit: number; status: string; search: string }) =>
+    ["employees", "paged", params] as const,
+  employee: (id: string) => ["employees", id] as const,
 };

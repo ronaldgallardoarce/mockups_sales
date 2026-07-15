@@ -1,4 +1,4 @@
-import { LayoutDashboard, Map, Route, Store, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Map, Route, Store, Users, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   title: string;
@@ -31,5 +31,11 @@ export const NAV_ITEMS: NavItem[] = [
     to: "/clients",
     icon: Store,
     description: "Clientes por canal y subcanal",
+  },
+  {
+    title: "Empleados",
+    to: "/employees",
+    icon: Users,
+    description: "Vendedores y asignación de rutas",
   },
 ];

@@ -110,7 +110,7 @@ export function RouteFormPage() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-9 w-64" />
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
           <Skeleton className="h-[520px]" />
           <Skeleton className="h-[520px]" />
         </div>
@@ -137,7 +137,7 @@ export function RouteFormPage() {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
         {/* ---- Form column ---- */}
         <Card>
           <CardContent className="space-y-4 p-5">

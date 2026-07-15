@@ -82,15 +82,3 @@ export function useDeleteRoute() {
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.routes }),
   });
 }
-
-export function useDuplicateRoute() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => routesService.duplicate(id),
-    onSuccess: (route) => {
-      qc.invalidateQueries({ queryKey: queryKeys.routes });
-      toast.success("Ruta duplicada", { description: route.name });
-    },
-    onError: () => toast.error("No se pudo duplicar la ruta"),
-  });
-}

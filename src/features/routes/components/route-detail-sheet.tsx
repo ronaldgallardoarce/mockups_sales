@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { ChannelBadge, ColorDot } from "@/components/common/channel-badge";
 import { StatusBadge } from "./status-badge";
 import { RouteMapPreview } from "./route-map-preview";
-import { getSubcanal } from "@/data/channels";
+import { getChannel, getSubcanal, groupSubcanalesByChannel } from "@/data/channels";
 import { formatDate } from "@/lib/utils";
 
 interface RouteDetailSheetProps {
@@ -60,19 +60,37 @@ export function RouteDetailSheet({ route, open, onOpenChange }: RouteDetailSheet
             </div>
           </section>
 
-          <section className="space-y-2">
+          <section className="space-y-2.5">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Subcanales
             </h4>
-            <div className="flex flex-wrap gap-1.5">
-              {route.subcanalIds.map((id) => (
-                <span
-                  key={id}
-                  className="rounded-md border bg-muted px-2 py-0.5 text-xs font-medium"
-                >
-                  {getSubcanal(id)?.name ?? id}
-                </span>
-              ))}
+            <div className="space-y-2">
+              {groupSubcanalesByChannel(route.subcanalIds).map(({ channelId, ids }) => {
+                const channel = getChannel(channelId);
+                return (
+                  <div key={channelId} className="space-y-1">
+                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                      <ColorDot color={channel?.color ?? "#64748b"} className="h-2 w-2" />
+                      {channel?.name}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ids.map((id) => (
+                        <span
+                          key={id}
+                          className="rounded-full border px-2 py-0.5 text-xs font-medium"
+                          style={{
+                            color: channel?.color,
+                            borderColor: `${channel?.color}55`,
+                            backgroundColor: `${channel?.color}14`,
+                          }}
+                        >
+                          {getSubcanal(id)?.name ?? id}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
 

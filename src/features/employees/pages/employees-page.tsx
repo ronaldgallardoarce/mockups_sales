@@ -1,40 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Map as MapIcon, Plus, Route as RouteIcon, Search, X } from "lucide-react";
-import type { Route, RouteStatus } from "@/types";
+import { Search, Users, X } from "lucide-react";
+import type { Employee, EmployeeStatus } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Pagination } from "@/components/common/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useDeleteRoute, useRoutesPaged } from "@/hooks/use-routes";
-import { RoutesTable } from "../components/routes-table";
-import { RouteDetailSheet } from "../components/route-detail-sheet";
+import { useEmployeesPaged } from "@/hooks/use-employees";
+import { EmployeesTable } from "../components/employees-table";
 
 const PAGE_SIZE_OPTIONS = [8, 10, 20, 50];
 
-export function RoutesListPage() {
+export function EmployeesPage() {
   const navigate = useNavigate();
-  const deleteRoute = useDeleteRoute();
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<RouteStatus | "all">("all");
+  const [status, setStatus] = useState<EmployeeStatus | "all">("all");
   const [pageSize, setPageSize] = useState(8);
   const [page, setPage] = useState(1);
-  const [detail, setDetail] = useState<Route | null>(null);
-  const [toDelete, setToDelete] = useState<Route | null>(null);
 
-  // Server-side filtering: go back to page 1 whenever the filters/size change.
   useEffect(() => setPage(1), [search, status, pageSize]);
 
-  const { data, isLoading, isFetching } = useRoutesPaged({
-    page,
-    limit: pageSize,
-    status,
-    search,
-  });
+  const { data, isLoading, isFetching } = useEmployeesPaged({ page, limit: pageSize, status, search });
 
   const rows = data?.data ?? [];
   const pagination = data?.pagination;
@@ -42,7 +31,6 @@ export function RoutesListPage() {
   const totalPages = pagination?.totalPages ?? 1;
   const hasFilters = search !== "" || status !== "all";
 
-  // Keep the current page valid if the total shrinks (e.g. after a delete).
   useEffect(() => {
     if (pagination && page > pagination.totalPages) setPage(pagination.totalPages);
   }, [pagination, page]);
@@ -54,19 +42,11 @@ export function RoutesListPage() {
     return { start, end };
   }, [page, pageSize, totalItems]);
 
+  const goToAssign = (employee: Employee) => navigate(`/employees/${employee.id}/assign`);
+
   return (
     <>
-      <PageHeader
-        title="Rutas"
-        description="Administra las rutas de pre-venta."
-      >
-        <Button variant="outline" onClick={() => navigate("/map")}>
-          <MapIcon className="h-4 w-4" /> Gestionar mapa
-        </Button>
-        <Button onClick={() => navigate("/routes/new")}>
-          <Plus className="h-4 w-4" /> Nueva ruta
-        </Button>
-      </PageHeader>
+      <PageHeader title="Empleados" description="Vendedores y su asignación de rutas de pre-venta." />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
@@ -74,18 +54,18 @@ export function RoutesListPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre de ruta…"
+            placeholder="Buscar por nombre, código o correo…"
             className="pl-9"
           />
         </div>
-        <Select value={status} onValueChange={(v) => setStatus(v as RouteStatus | "all")}>
+        <Select value={status} onValueChange={(v) => setStatus(v as EmployeeStatus | "all")}>
           <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="active">Activas</SelectItem>
-            <SelectItem value="inactive">Inactivas</SelectItem>
+            <SelectItem value="active">Activos</SelectItem>
+            <SelectItem value="inactive">Inactivos</SelectItem>
           </SelectContent>
         </Select>
         {hasFilters && (
@@ -101,33 +81,19 @@ export function RoutesListPage() {
         )}
       </div>
 
-     
-
       {!isLoading && totalItems === 0 ? (
         <EmptyState
-          icon={RouteIcon}
-          title={hasFilters ? "Sin resultados" : "Aún no hay rutas"}
+          icon={Users}
+          title={hasFilters ? "Sin resultados" : "Aún no hay empleados"}
           description={
             hasFilters
-              ? "Ajusta la búsqueda o los filtros para encontrar rutas."
-              : "Crea tu primera ruta de pre-venta para empezar."
-          }
-          action={
-            !hasFilters && (
-              <Button onClick={() => navigate("/routes/new")}>
-                <Plus className="h-4 w-4" /> Nueva ruta
-              </Button>
-            )
+              ? "Ajusta la búsqueda o los filtros para encontrar empleados."
+              : "Los empleados registrados aparecerán aquí."
           }
         />
       ) : (
         <div className={isFetching && !isLoading ? "opacity-70 transition-opacity" : undefined}>
-          <RoutesTable
-            routes={rows}
-            loading={isLoading}
-            onView={setDetail}
-            onDelete={setToDelete}
-          />
+          <EmployeesTable employees={rows} loading={isLoading} onAssignRoute={goToAssign} />
         </div>
       )}
 
@@ -162,24 +128,6 @@ export function RoutesListPage() {
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
-
-      <RouteDetailSheet route={detail} open={!!detail} onOpenChange={(o) => !o && setDetail(null)} />
-
-      <ConfirmDialog
-        open={!!toDelete}
-        onOpenChange={(o) => !o && setToDelete(null)}
-        title={`¿Eliminar “${toDelete?.name}”?`}
-        description="Esta acción no se puede deshacer. La ruta será eliminada permanentemente."
-        confirmLabel="Eliminar"
-        destructive
-        loading={deleteRoute.isPending}
-        onConfirm={() => {
-          if (toDelete) {
-            deleteRoute.mutate(toDelete.id);
-            setToDelete(null);
-          }
-        }}
-      />
     </>
   );
 }

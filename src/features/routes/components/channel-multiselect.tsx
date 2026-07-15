@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ColorDot } from "@/components/common/channel-badge";
+import { getSubcanalesByChannel } from "@/data/channels";
 
 interface ChannelMultiSelectProps {
   channels: Channel[];
@@ -119,12 +120,17 @@ export function ChannelMultiSelect({ channels, value, onChange, loading }: Chann
                           {isSel && <Check className="h-3 w-3" />}
                         </span>
                         <ColorDot color={ch.color} />
-                        <span className="flex-1 font-medium">{ch.name}</span>
-                        {ch.description && (
-                          <span className="hidden truncate text-xs text-muted-foreground sm:block sm:max-w-[45%]">
-                            {ch.description}
-                          </span>
-                        )}
+                        <span className="flex-1">
+                          <span className="block font-medium">{ch.name}</span>
+                          {ch.description && (
+                            <span className="hidden truncate text-xs text-muted-foreground sm:block">
+                              {ch.description}
+                            </span>
+                          )}
+                        </span>
+                        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          {getSubcanalesByChannel(ch.id).length} subcanales
+                        </span>
                       </button>
                     </li>
                   );

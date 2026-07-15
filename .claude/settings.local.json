@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(pnpm remove *)"
+      "PowerShell(pnpm remove *)",
+      "Bash(npx tsc *)",
+      "Bash(kill 525858)",
+      "Bash(rg *)",
+      "Bash(npm run *)",
+      "Bash(curl *)",
+      "Bash(gh auth *)"
     ]
   }
 }

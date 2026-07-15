@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Copy, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import type { Route } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,11 +13,10 @@ import {
 interface RouteActionsProps {
   route: Route;
   onView: (route: Route) => void;
-  onDuplicate: (route: Route) => void;
   onDelete: (route: Route) => void;
 }
 
-export function RouteActions({ route, onView, onDuplicate, onDelete }: RouteActionsProps) {
+export function RouteActions({ route, onView, onDelete }: RouteActionsProps) {
   const navigate = useNavigate();
   return (
     <DropdownMenu>
@@ -32,9 +31,6 @@ export function RouteActions({ route, onView, onDuplicate, onDelete }: RouteActi
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate(`/routes/${route.id}/edit`)}>
           <Pencil /> Editar
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDuplicate(route)}>
-          <Copy /> Duplicar
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

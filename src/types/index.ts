@@ -81,3 +81,22 @@ export interface RouteInput {
   blockIds: string[];
   startDate: string;
 }
+
+export type EmployeeStatus = "active" | "inactive";
+
+/**
+ * Empleado — a salesperson. Their channels/subcanales are NOT stored directly:
+ * they're derived from the routes assigned to them (routeIds).
+ */
+export interface Employee {
+  id: string;
+  code: string;
+  name: string;
+  role: string;
+  email: string;
+  phone: string;
+  status: EmployeeStatus;
+  routeIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}

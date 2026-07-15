@@ -76,3 +76,16 @@ export function getSubcanalesByChannel(channelId: string): Subcanal[] {
 export function channelColor(channelId: string | undefined): string {
   return (channelId && channelById.get(channelId)?.color) || "#64748b";
 }
+
+/** Groups subcanal ids by their parent channel — each group keeps the channel's color. */
+export function groupSubcanalesByChannel(subcanalIds: string[]) {
+  const groups = new Map<string, { channelId: string; ids: string[] }>();
+  for (const id of subcanalIds) {
+    const sub = subcanalById.get(id);
+    if (!sub) continue;
+    const group = groups.get(sub.channelId) ?? { channelId: sub.channelId, ids: [] };
+    group.ids.push(id);
+    groups.set(sub.channelId, group);
+  }
+  return [...groups.values()];
+}

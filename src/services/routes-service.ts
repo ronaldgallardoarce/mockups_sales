@@ -97,19 +97,4 @@ export const routesService = {
     ROUTES = ROUTES.filter((r) => r.id !== id);
     return delay({ id }, 400);
   },
-
-  duplicate: (id: string): Promise<Route> => {
-    const source = ROUTES.find((r) => r.id === id);
-    if (!source) return Promise.reject(new Error("Ruta no encontrada"));
-    const now = new Date().toISOString();
-    const copy: Route = {
-      ...source,
-      id: uid("rt"),
-      name: `${source.name} (copia)`,
-      createdAt: now,
-      updatedAt: now,
-    };
-    ROUTES = [copy, ...ROUTES];
-    return delay(copy, 400);
-  },
 };
