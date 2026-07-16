@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { Seller, SellerStatus } from "@/types";
+import type { Seller, SellerRouteAssignment, SellerStatus } from "@/types";
 import { sellersService, type ListSellersParams } from "@/services/sellers-service";
 import { queryKeys } from "@/lib/query-client";
 
@@ -31,8 +31,8 @@ export function useSeller(code: number | undefined) {
 export function useUpdateSellerRoutes() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, routeIds }: { code: number; routeIds: string[] }) =>
-      sellersService.updateRoutes(code, routeIds),
+    mutationFn: ({ code, routeAssignments }: { code: number; routeAssignments: SellerRouteAssignment[] }) =>
+      sellersService.updateRoutes(code, routeAssignments),
     onSuccess: (seller: Seller) => {
       qc.invalidateQueries({ queryKey: queryKeys.sellers });
       qc.invalidateQueries({ queryKey: queryKeys.seller(seller.code) });

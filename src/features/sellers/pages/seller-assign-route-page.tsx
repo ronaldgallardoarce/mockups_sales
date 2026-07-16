@@ -11,7 +11,8 @@ import {
   Users,
   X,
 } from "lucide-react";
-import type { Route } from "@/types";
+import type { Client, Route, SellerRouteAssignment } from "@/types";
+import { WEEKDAY_DAYS } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,13 +28,31 @@ import { useRoutes } from "@/hooks/use-routes";
 import { groupSubcanalesByChannel, getChannel, getSubcanal } from "@/data/channels";
 import { SellerCoverageMap } from "../components/seller-coverage-map";
 import { RoutePickerDialog } from "../components/route-picker-dialog";
+import { RouteFrequencyPopover } from "../components/route-frequency-popover";
+import { SelectedClientsSection } from "@/features/routes/components/selected-clients-section";
+import { useClientsBySubcanales } from "@/hooks/use-clients";
 
 function initials(name: string) {
   return name.split(" ").slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 }
 
-const sameSet = (a: string[], b: string[]) =>
-  a.length === b.length && [...a].sort().join() === [...b].sort().join();
+const sameAssignments = (a: SellerRouteAssignment[], b: SellerRouteAssignment[]) => {
+  if (a.length !== b.length) return false;
+  const sortById = (x: SellerRouteAssignment[]) =>
+    [...x].sort((l, r) => l.routeId.localeCompare(r.routeId));
+  return sortById(a).every((ai, i) => {
+    const bi = sortById(b)[i];
+    return (
+      ai.routeId === bi.routeId &&
+      ai.frequency.weeks.length === bi.frequency.weeks.length &&
+      ai.frequency.weeks.every((w) => bi.frequency.weeks.includes(w)) &&
+      ai.frequency.days.length === bi.frequency.days.length &&
+      ai.frequency.days.every((d) => bi.frequency.days.includes(d))
+    );
+  });
+};
+
+const DEFAULT_FREQUENCY = { weeks: [1, 2, 3, 4] as const, days: [...WEEKDAY_DAYS] };
 
 export function SellerAssignRoutePage() {
   const { code: codeParam } = useParams<{ code: string }>();
@@ -44,20 +63,21 @@ export function SellerAssignRoutePage() {
   const { data: allRoutes = [] } = useRoutes();
   const updateRoutes = useUpdateSellerRoutes();
 
-  const [routeIds, setRouteIds] = useState<string[]>([]);
+  const [routeAssignments, setRouteAssignments] = useState<SellerRouteAssignment[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [focusClient, setFocusClient] = useState<Client | null>(null);
 
   useEffect(() => {
-    if (seller) setRouteIds(seller.routeIds);
+    if (seller) setRouteAssignments(seller.routeAssignments);
   }, [seller]);
 
   const assignedRoutes = useMemo(
-    () => routeIds.map((rid) => allRoutes.find((r) => r.id === rid)).filter((r): r is Route => !!r),
-    [routeIds, allRoutes],
+    () => routeAssignments.map((a) => allRoutes.find((r) => r.id === a.routeId)).filter((r): r is Route => !!r),
+    [routeAssignments, allRoutes],
   );
   const candidateRoutes = useMemo(
-    () => allRoutes.filter((r) => !routeIds.includes(r.id)),
-    [allRoutes, routeIds],
+    () => allRoutes.filter((r) => !routeAssignments.some((a) => a.routeId === r.id)),
+    [allRoutes, routeAssignments],
   );
 
   const derivedChannelIds = useMemo(
@@ -69,14 +89,35 @@ export function SellerAssignRoutePage() {
     [assignedRoutes],
   );
 
-  const dirty = seller ? !sameSet(routeIds, seller.routeIds) : false;
+  const assignedBlockIds = useMemo(
+    () => assignedRoutes.flatMap((r) => r.blockIds),
+    [assignedRoutes],
+  );
 
-  const addRoute = (route: Route) => setRouteIds((prev) => [...prev, route.id]);
-  const removeRoute = (routeId: string) => setRouteIds((prev) => prev.filter((r) => r !== routeId));
+  const { data: clients = [] } = useClientsBySubcanales(derivedSubcanalIds);
+
+  const dirty = seller ? !sameAssignments(routeAssignments, seller.routeAssignments) : false;
+
+  const addRoute = (route: Route) => {
+    setRouteAssignments((prev) => [
+      ...prev,
+      { routeId: route.id, frequency: { weeks: [...DEFAULT_FREQUENCY.weeks], days: [...DEFAULT_FREQUENCY.days] } },
+    ]);
+    setFocusClient(null);
+  };
+  const removeRoute = (routeId: string) => {
+    setRouteAssignments((prev) => prev.filter((a) => a.routeId !== routeId));
+    setFocusClient(null);
+  };
+  const updateFrequency = (routeId: string, freq: SellerRouteAssignment["frequency"]) => {
+    setRouteAssignments((prev) =>
+      prev.map((a) => (a.routeId === routeId ? { ...a, frequency: freq } : a)),
+    );
+  };
 
   const handleSave = async () => {
     if (code === undefined) return;
-    await updateRoutes.mutateAsync({ code, routeIds });
+    await updateRoutes.mutateAsync({ code, routeAssignments });
     navigate("/sellers");
   };
 
@@ -123,8 +164,8 @@ export function SellerAssignRoutePage() {
       </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-        {/* ---- Info column ---- */}
-        <div className="space-y-6">
+        {/* ---- Info column (scrollable) ---- */}
+        <div className="space-y-6 overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
           <Card>
             <CardContent className="space-y-4 p-5">
               <div className="flex items-center gap-3">
@@ -225,31 +266,45 @@ export function SellerAssignRoutePage() {
                 </p>
               ) : (
                 <ul className="space-y-1.5">
-                  {assignedRoutes.map((route) => (
-                    <li
-                      key={route.id}
-                      className="flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm"
-                    >
-                      <ColorDot color={route.color} />
-                      <span className="min-w-0 flex-1 truncate font-medium">{route.name}</span>
-                      <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3" /> {route.clientCount}
-                      </span>
-                      <StatusBadge status={route.status} />
-                      <button
-                        type="button"
-                        onClick={() => removeRoute(route.id)}
-                        className="shrink-0 rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        aria-label={`Quitar ${route.name}`}
+                  {assignedRoutes.map((route) => {
+                    const assignment = routeAssignments.find((a) => a.routeId === route.id);
+                    return (
+                      <li
+                        key={route.id}
+                        className="space-y-1.5 rounded-lg border px-3 py-2 text-sm"
                       >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  ))}
+                        <div className="flex items-center gap-2.5">
+                          <ColorDot color={route.color} />
+                          <span className="min-w-0 flex-1 truncate font-medium">{route.name}</span>
+                          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="h-3 w-3" /> {route.clientCount}
+                          </span>
+                          <StatusBadge status={route.status} />
+                          <button
+                            type="button"
+                            onClick={() => removeRoute(route.id)}
+                            className="shrink-0 rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            aria-label={`Quitar ${route.name}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        {assignment && (
+                          <RouteFrequencyPopover
+                            value={assignment.frequency}
+                            onChange={(freq) => updateFrequency(route.id, freq)}
+                            routeColor={route.color}
+                          />
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </CardContent>
           </Card>
+
+          <SelectedClientsSection subcanalIds={derivedSubcanalIds} blockIds={assignedBlockIds} clients={clients} onClientClick={setFocusClient} />
         </div>
 
         {/* ---- Coverage map column ---- */}
@@ -259,7 +314,7 @@ export function SellerAssignRoutePage() {
             Cobertura por ruta — cada color es la ruta asignada
           </div>
           <div className="h-[460px] lg:h-[calc(100%-2rem)]">
-            <SellerCoverageMap routes={assignedRoutes} />
+            <SellerCoverageMap routes={assignedRoutes} focusClient={focusClient} />
           </div>
         </div>
       </div>

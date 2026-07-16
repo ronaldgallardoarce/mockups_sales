@@ -1,4 +1,4 @@
-import type { Block, Client, Polygon, Route, Seller } from "@/types";
+import type { Block, Client, DayCode, Polygon, Route, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
 import { seededRandom } from "@/lib/utils";
 import { TRINIDAD_CENTER, pointInPolygon } from "@/lib/geo";
 import { CHANNELS, SUBCANALES, getSubcanalesByChannel } from "./channels";
@@ -177,6 +177,24 @@ function buildRoutes(): Route[] {
 export const SEED_ROUTES: Route[] = buildRoutes();
 
 // ---- Sellers (Vendedores) --------------------------------------------------
+function buildRandomFrequency(): { weeks: WeekPosition[]; days: DayCode[] } {
+  // Random weeks: 1-4 (biased toward all weeks)
+  const weekCount = rand() < 0.6 ? 4 : 1 + Math.floor(rand() * 4);
+  const allWeeks: WeekPosition[] = [1, 2, 3, 4];
+  const weeks = weekCount >= 4
+    ? allWeeks
+    : [...allWeeks].sort(() => rand() - 0.5).slice(0, weekCount).sort();
+
+  // Random days: biased toward weekdays
+  const allDays: DayCode[] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+  const weekdayOnly = rand() < 0.75;
+  const pool = weekdayOnly ? allDays.slice(0, 5) : allDays;
+  const dayCount = 1 + Math.floor(rand() * Math.min(pool.length, 5));
+  const days = [...pool].sort(() => rand() - 0.5).slice(0, dayCount).sort();
+
+  return { weeks, days };
+}
+
 function buildSellers(): Seller[] {
   const sellers: Seller[] = [];
   for (let i = 0; i < 24; i++) {
@@ -184,12 +202,14 @@ function buildSellers(): Seller[] {
     const last = pick(OWNER_LAST);
     const idx = i + 1;
     // Most sellers carry 1-3 routes; a few start with none (empty state).
-    const routeIds: string[] = [];
+    const routeAssignments: SellerRouteAssignment[] = [];
     if (rand() > 0.15) {
       const routeCount = 1 + Math.floor(rand() * 3); // 1..3
       for (let k = 0; k < routeCount; k++) {
         const r = pick(SEED_ROUTES);
-        if (!routeIds.includes(r.id)) routeIds.push(r.id);
+        if (!routeAssignments.some((a) => a.routeId === r.id)) {
+          routeAssignments.push({ routeId: r.id, frequency: buildRandomFrequency() });
+        }
       }
     }
     sellers.push({
@@ -199,7 +219,7 @@ function buildSellers(): Seller[] {
       // The real API returns null for some sellers.
       phone: rand() < 0.85 ? `+591 ${Math.floor(between(6000000, 7999999))}` : null,
       status: rand() < 0.85 ? "ACTIVO" : "INACTIVO",
-      routeIds,
+      routeAssignments,
     });
   }
   return sellers;

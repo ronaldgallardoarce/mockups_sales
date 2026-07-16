@@ -84,11 +84,53 @@ export interface RouteInput {
 
 export type SellerStatus = "ACTIVO" | "INACTIVO";
 
+/** Week positions within a month (1 = first week, 4 = last week). */
+export type WeekPosition = 1 | 2 | 3 | 4;
+
+/** Day-of-week codes used for route frequency. */
+export type DayCode = "MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU";
+
+/** Label maps for UI display. */
+export const WEEK_LABELS: Record<WeekPosition, string> = {
+  1: "1ra semana",
+  2: "2da semana",
+  3: "3ra semana",
+  4: "4ta semana",
+};
+
+export const DAY_LABELS: Record<DayCode, string> = {
+  MO: "Lunes",
+  TU: "Martes",
+  WE: "Miércoles",
+  TH: "Jueves",
+  FR: "Viernes",
+  SA: "Sábado",
+  SU: "Domingo",
+};
+
+export const ALL_WEEKS: WeekPosition[] = [1, 2, 3, 4];
+export const ALL_DAYS: DayCode[] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+export const WEEKDAY_DAYS: DayCode[] = ["MO", "TU", "WE", "TH", "FR"];
+
+/** How often a seller visits a specific route. */
+export interface RouteFrequency {
+  /** Which weeks of the month the visit happens (1-4). */
+  weeks: WeekPosition[];
+  /** Which days of the week the visit happens. */
+  days: DayCode[];
+}
+
+/** One route assignment with its visit frequency. */
+export interface SellerRouteAssignment {
+  routeId: string;
+  frequency: RouteFrequency;
+}
+
 /**
  * Vendedor (Seller) — a salesperson, as returned by the sellers API:
  *   { code, name, phone, email, status }
  * `code` is the unique identifier. `phone` may be null. Channels/subcanales are
- * NOT stored directly: they're derived from the routes assigned (routeIds), which
+ * NOT stored directly: they're derived from the routes assigned, which
  * is managed by this app and not part of the list API payload.
  */
 export interface Seller {
@@ -98,6 +140,6 @@ export interface Seller {
   email: string;
   phone: string | null;
   status: SellerStatus;
-  /** App-managed route assignment (not part of the sellers list API). */
-  routeIds: string[];
+  /** App-managed route assignments with frequency (not part of the sellers list API). */
+  routeAssignments: SellerRouteAssignment[];
 }

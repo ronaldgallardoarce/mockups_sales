@@ -14,6 +14,17 @@ export function clientPinIcon(color: string) {
   });
 }
 
+/** Highlighted (focused) client pin — larger with a pulsing ring. */
+export function highlightPinIcon(color: string) {
+  return L.divIcon({
+    className: "",
+    html: `<span class="client-pin-highlight" style="--hl-color:${color};display:block;background:${color}"></span>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 20],
+    popupAnchor: [0, -20],
+  });
+}
+
 /** Cluster bubble: a circle badge tinted by the dominant channel color. */
 export function clusterIcon(count: number, color: string) {
   const size = count < 10 ? 34 : count < 50 ? 40 : 48;

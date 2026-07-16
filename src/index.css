@@ -147,3 +147,18 @@
 .dark .client-pin {
   border-color: hsl(240 8% 12%);
 }
+
+/* Highlighted (focused) client pin — pulsing ring */
+.client-pin-highlight {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 3px var(--hl-color, #3b82f6) 40,
+    0 0 12px var(--hl-color, #3b82f6) 80;
+  animation: client-pulse 1.4s ease-in-out infinite;
+}
+@keyframes client-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--hl-color, #3b82f6) 40, 0 0 12px var(--hl-color, #3b82f6) 80; }
+  50% { box-shadow: 0 0 0 6px var(--hl-color, #3b82f6) 30, 0 0 20px var(--hl-color, #3b82f6) 60; }
+}

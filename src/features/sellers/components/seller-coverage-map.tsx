@@ -1,23 +1,32 @@
 import { useMemo } from "react";
 import { Polygon, Tooltip as LeafletTooltip } from "react-leaflet";
 import { MapPinned } from "lucide-react";
-import type { LatLng, Route } from "@/types";
+import type { Client, LatLng, Route } from "@/types";
 import { BaseMap } from "@/features/map/components/base-map";
 import { ClientMarkers } from "@/features/map/components/client-markers";
 import { FitBounds } from "@/features/map/components/fit-bounds";
+import { FlyToClient } from "@/features/map/components/fly-to-client";
 import { useBlocksStore } from "@/stores/blocks-store";
-import { useClients } from "@/hooks/use-clients";
+import { useClientsBySubcanales } from "@/hooks/use-clients";
 import { pointInPolygon } from "@/lib/geo";
 
 interface SellerCoverageMapProps {
   /** Routes currently assigned (or about to be) — each drawn in its own `route.color`. */
   routes: Route[];
+  /** Client to fly to and highlight on the map. */
+  focusClient?: Client | null;
 }
 
 /** Read-only preview: every assigned route's manzanos in its own color, plus their clients. */
-export function SellerCoverageMap({ routes }: SellerCoverageMapProps) {
+export function SellerCoverageMap({ routes, focusClient }: SellerCoverageMapProps) {
   const allBlocks = useBlocksStore((s) => s.blocks);
-  const { data: clients = [] } = useClients();
+
+  const allSubcanalIds = useMemo(
+    () => Array.from(new Set(routes.flatMap((r) => r.subcanalIds))),
+    [routes],
+  );
+
+  const { data: clients = [] } = useClientsBySubcanales(allSubcanalIds);
 
   const routeBlocks = useMemo(
     () =>
@@ -61,8 +70,9 @@ export function SellerCoverageMap({ routes }: SellerCoverageMapProps) {
             </Polygon>
           )),
         )}
-        <ClientMarkers clients={clientsInCoverage} />
+        <ClientMarkers clients={clientsInCoverage} highlightedClientId={focusClient?.id} />
         <FitBounds points={fitPoints} />
+        <FlyToClient client={focusClient} />
       </BaseMap>
 
       {!hasCoverage && (

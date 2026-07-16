@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, MapIcon, Save } from "lucide-react";
+import type { Client } from "@/types";
 import { routeSchema, type RouteFormValues } from "../route-schema";
 import { getSubcanalesByChannel } from "@/data/channels";
 import { useChannels } from "@/hooks/use-channels";
@@ -19,6 +20,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { ChannelMultiSelect } from "../components/channel-multiselect";
 import { SubcanalSelector } from "../components/subcanal-selector";
 import { RouteMapSelector } from "../components/route-map-selector";
+import { SelectedClientsSection } from "../components/selected-clients-section";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -79,11 +81,14 @@ export function RouteFormPage() {
   const blockIds = watch("blockIds");
   const status = watch("status");
 
+  const [focusClient, setFocusClient] = useState<Client | null>(null);
+
   const toggleBlock = (blockId: string) => {
     const next = blockIds.includes(blockId)
       ? blockIds.filter((b) => b !== blockId)
       : [...blockIds, blockId];
     setValue("blockIds", next, { shouldValidate: true, shouldDirty: true });
+    setFocusClient(null);
   };
 
   /** Adding a channel auto-selects its subcanales; removing prunes them. */
@@ -111,7 +116,10 @@ export function RouteFormPage() {
       <div className="space-y-4">
         <Skeleton className="h-9 w-64" />
         <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-          <Skeleton className="h-[520px]" />
+          <div className="space-y-4">
+            <Skeleton className="h-[520px]" />
+            <Skeleton className="h-[200px]" />
+          </div>
           <Skeleton className="h-[520px]" />
         </div>
       </div>
@@ -138,72 +146,76 @@ export function RouteFormPage() {
       </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-        {/* ---- Form column ---- */}
-        <Card>
-          <CardContent className="space-y-4 p-5">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre de la ruta</Label>
-              <Input id="name" placeholder="Ej. Ruta Centro · Tradicional" {...register("name")} />
-              <FieldError message={errors.name?.message} />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
+        {/* ---- Form column (scrollable) ---- */}
+        <div className="space-y-4 overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
+          <Card>
+            <CardContent className="space-y-4 p-5">
               <div className="space-y-2">
-                <Label>Color</Label>
-                <Controller
-                  control={control}
-                  name="color"
-                  render={({ field }) => <ColorPicker value={field.value} onChange={field.onChange} />}
-                />
-                <FieldError message={errors.color?.message} />
+                <Label htmlFor="name">Nombre de la ruta</Label>
+                <Input id="name" placeholder="Ej. Ruta Centro · Tradicional" {...register("name")} />
+                <FieldError message={errors.name?.message} />
               </div>
 
-              <div className="space-y-2">
-                <Label>Estado</Label>
-                <div className="flex h-9 items-center gap-3 rounded-md border px-3">
-                  <Switch
-                    checked={status === "active"}
-                    onCheckedChange={(v) =>
-                      setValue("status", v ? "active" : "inactive", { shouldDirty: true })
-                    }
-                    id="status"
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Color</Label>
+                  <Controller
+                    control={control}
+                    name="color"
+                    render={({ field }) => <ColorPicker value={field.value} onChange={field.onChange} />}
                   />
-                  <Label htmlFor="status" className="cursor-pointer font-normal">
-                    {status === "active" ? "Activa" : "Inactiva"}
-                  </Label>
+                  <FieldError message={errors.color?.message} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Estado</Label>
+                  <div className="flex h-9 items-center gap-3 rounded-md border px-3">
+                    <Switch
+                      checked={status === "active"}
+                      onCheckedChange={(v) =>
+                        setValue("status", v ? "active" : "inactive", { shouldDirty: true })
+                      }
+                      id="status"
+                    />
+                    <Label htmlFor="status" className="cursor-pointer font-normal">
+                      {status === "active" ? "Activa" : "Inactiva"}
+                    </Label>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Fecha de inicio</Label>
-              <Input id="startDate" type="date" {...register("startDate")} />
-              <FieldError message={errors.startDate?.message} />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Fecha de inicio</Label>
+                <Input id="startDate" type="date" {...register("startDate")} />
+                <FieldError message={errors.startDate?.message} />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Canal de venta</Label>
-              <ChannelMultiSelect
-                channels={channels}
-                value={channelIds}
-                onChange={handleChannels}
-                loading={loadingChannels}
-              />
-              <FieldError message={errors.channelIds?.message} />
-            </div>
+              <div className="space-y-2">
+                <Label>Canal de venta</Label>
+                <ChannelMultiSelect
+                  channels={channels}
+                  value={channelIds}
+                  onChange={handleChannels}
+                  loading={loadingChannels}
+                />
+                <FieldError message={errors.channelIds?.message} />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Subcanales</Label>
-              <SubcanalSelector
-                channelIds={channelIds}
-                value={subcanalIds}
-                onChange={(ids) => setValue("subcanalIds", ids, { shouldValidate: true, shouldDirty: true })}
-                clients={clients}
-              />
-              <FieldError message={errors.subcanalIds?.message} />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="space-y-2">
+                <Label>Subcanales</Label>
+                <SubcanalSelector
+                  channelIds={channelIds}
+                  value={subcanalIds}
+                  onChange={(ids) => setValue("subcanalIds", ids, { shouldValidate: true, shouldDirty: true })}
+                  clients={clients}
+                />
+                <FieldError message={errors.subcanalIds?.message} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <SelectedClientsSection subcanalIds={subcanalIds} blockIds={blockIds} clients={clients} onClientClick={setFocusClient} />
+        </div>
 
         {/* ---- Manzano selector column ---- */}
         <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-8rem)]">
@@ -215,7 +227,7 @@ export function RouteFormPage() {
             <FieldError message={errors.blockIds?.message} />
           </div>
           <div className="h-[460px] lg:h-[calc(100%-2rem)]">
-            <RouteMapSelector value={blockIds} onToggle={toggleBlock} subcanalIds={subcanalIds} />
+            <RouteMapSelector value={blockIds} onToggle={toggleBlock} subcanalIds={subcanalIds} focusClient={focusClient} />
           </div>
         </div>
       </div>

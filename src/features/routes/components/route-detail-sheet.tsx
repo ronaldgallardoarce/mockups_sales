@@ -101,7 +101,7 @@ export function RouteDetailSheet({ route, open, onOpenChange }: RouteDetailSheet
               Cobertura
             </h4>
             <div className="h-64">
-              <RouteMapPreview blockIds={route.blockIds} color={route.color} />
+              <RouteMapPreview blockIds={route.blockIds} subcanalIds={route.subcanalIds} color={route.color} />
             </div>
           </section>
 

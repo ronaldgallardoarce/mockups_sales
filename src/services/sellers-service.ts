@@ -1,4 +1,4 @@
-import type { Seller, SellerStatus } from "@/types";
+import type { Seller, SellerRouteAssignment, SellerStatus } from "@/types";
 import { SEED_SELLERS } from "@/data/seed";
 import { delay } from "@/lib/utils";
 import type { Paginated } from "./routes-service";
@@ -41,12 +41,12 @@ export const sellersService = {
   get: (code: number): Promise<Seller | undefined> =>
     delay(SELLERS.find((s) => s.code === code), 300),
 
-  /** Persists the seller's full route assignment (replace, not merge). */
-  updateRoutes: (code: number, routeIds: string[]): Promise<Seller> => {
+  /** Persists the seller's full route assignments (replace, not merge). */
+  updateRoutes: (code: number, routeAssignments: SellerRouteAssignment[]): Promise<Seller> => {
     let updated: Seller | undefined;
     SELLERS = SELLERS.map((s) => {
       if (s.code !== code) return s;
-      updated = { ...s, routeIds };
+      updated = { ...s, routeAssignments };
       return updated;
     });
     if (!updated) return Promise.reject(new Error("Vendedor no encontrado"));

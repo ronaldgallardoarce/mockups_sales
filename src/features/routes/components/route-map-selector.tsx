@@ -1,12 +1,13 @@
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, Loader2, MousePointerClick, Pencil, Plus, X } from "lucide-react";
-import type { LatLng } from "@/types";
+import type { Client, LatLng } from "@/types";
 import { Button } from "@/components/ui/button";
 import { BaseMap } from "@/features/map/components/base-map";
 import { BlockPolygons } from "@/features/map/components/block-polygons";
 import { ClientMarkers } from "@/features/map/components/client-markers";
 import { FitBounds } from "@/features/map/components/fit-bounds";
+import { FlyToClient } from "@/features/map/components/fly-to-client";
 import { DrawPolygonControl, type DrawHandle } from "@/features/map/components/draw-polygon-control";
 import { useBlocksStore } from "@/stores/blocks-store";
 import { useClientsBySubcanales } from "@/hooks/use-clients";
@@ -20,6 +21,8 @@ interface RouteMapSelectorProps {
   onToggle: (blockId: string) => void;
   /** Drives which clients are shown (clients of these subcanales/channels). */
   subcanalIds: string[];
+  /** Client to fly to and highlight on the map. */
+  focusClient?: Client | null;
 }
 
 /**
@@ -28,7 +31,7 @@ interface RouteMapSelectorProps {
  * sits outside every polygon, the user can draw a new one here (it's saved and
  * can then be optionally added to the route). Zoom stays fixed while selecting.
  */
-export function RouteMapSelector({ value, onToggle, subcanalIds }: RouteMapSelectorProps) {
+export function RouteMapSelector({ value, onToggle, subcanalIds, focusClient }: RouteMapSelectorProps) {
   const blocks = useBlocksStore((s) => s.blocks);
   const addBlock = useBlocksStore((s) => s.addBlock);
   const { data: clients = [], isFetching } = useClientsBySubcanales(subcanalIds);
@@ -75,8 +78,9 @@ export function RouteMapSelector({ value, onToggle, subcanalIds }: RouteMapSelec
     <div className="relative h-full w-full overflow-hidden rounded-xl border bg-muted">
       <BaseMap layerControl>
         <BlockPolygons blocks={blocks} selectedIds={value} onSelect={(b) => onToggle(b.id)} />
-        {!noChannels && <ClientMarkers clients={clients} />}
+        {!noChannels && <ClientMarkers clients={clients} highlightedClientId={focusClient?.id} />}
         <FitBounds points={fitPoints} />
+        <FlyToClient client={focusClient} />
         <DrawPolygonControl
           ref={drawRef}
           active={drawMode === "drawing"}

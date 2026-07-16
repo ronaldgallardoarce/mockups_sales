@@ -6,19 +6,21 @@ import { BlockPolygons } from "@/features/map/components/block-polygons";
 import { ClientMarkers } from "@/features/map/components/client-markers";
 import { FitBounds } from "@/features/map/components/fit-bounds";
 import { useBlocksStore } from "@/stores/blocks-store";
-import { useClients } from "@/hooks/use-clients";
+import { useClientsBySubcanales } from "@/hooks/use-clients";
 import { pointInPolygon } from "@/lib/geo";
 
 interface RouteMapPreviewProps {
   /** Manzanos that compose the route. */
   blockIds: string[];
+  /** Subcanales that compose the route — only clients in these are shown. */
+  subcanalIds: string[];
   color?: string;
 }
 
 /** Read-only preview: the route's manzanos and the clients inside them. */
-export function RouteMapPreview({ blockIds, color }: RouteMapPreviewProps) {
+export function RouteMapPreview({ blockIds, subcanalIds, color }: RouteMapPreviewProps) {
   const allBlocks = useBlocksStore((s) => s.blocks);
-  const { data: clients = [] } = useClients();
+  const { data: clients = [] } = useClientsBySubcanales(subcanalIds);
 
   const blocks = useMemo(
     () => allBlocks.filter((b) => blockIds.includes(b.id)),

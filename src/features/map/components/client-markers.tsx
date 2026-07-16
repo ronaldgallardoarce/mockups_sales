@@ -3,13 +3,19 @@ import { Marker, Popup, Tooltip } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import type { Client } from "@/types";
 import { channelColor, getChannel, getSubcanal } from "@/data/channels";
-import { clientPinIcon, clusterIcon } from "../lib/leaflet-setup";
+import { clientPinIcon, highlightPinIcon, clusterIcon } from "../lib/leaflet-setup";
 
 /**
  * Renders one MarkerClusterGroup per channel so both the pins and the cluster
  * bubbles are colored by channel — keeping color-coding consistent everywhere.
  */
-export function ClientMarkers({ clients }: { clients: Client[] }) {
+export function ClientMarkers({
+  clients,
+  highlightedClientId,
+}: {
+  clients: Client[];
+  highlightedClientId?: string;
+}) {
   const byChannel = useMemo(() => {
     const map = new Map<string, Client[]>();
     for (const c of clients) {
@@ -34,8 +40,11 @@ export function ClientMarkers({ clients }: { clients: Client[] }) {
               clusterIcon(cluster.getChildCount(), color)
             }
           >
-            {list.map((client) => (
-              <Marker key={client.id} position={[client.lat, client.lng]} icon={clientPinIcon(color)}>
+            {list.map((client) => {
+              const isHighlighted = client.id === highlightedClientId;
+              const icon = isHighlighted ? highlightPinIcon(color) : clientPinIcon(color);
+              return (
+                <Marker key={client.id} position={[client.lat, client.lng]} icon={icon}>
                 <Tooltip direction="top" offset={[0, -14]}>
                   <div>
                     <div className="font-medium">{client.name}</div>
@@ -56,7 +65,8 @@ export function ClientMarkers({ clients }: { clients: Client[] }) {
                   </div>
                 </Popup>
               </Marker>
-            ))}
+              );
+            })}
           </MarkerClusterGroup>
         );
       })}

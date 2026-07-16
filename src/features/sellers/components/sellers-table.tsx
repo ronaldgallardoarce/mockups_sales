@@ -78,10 +78,10 @@ export function SellersTable({ sellers, loading, onAssignRoute }: SellersTablePr
                     </div>
                   </TableCell>
                   <TableCell>
-                    {seller.routeIds.length > 0 ? (
+                    {seller.routeAssignments.length > 0 ? (
                       <span className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-xs font-medium">
                         <MapPinned className="h-3 w-3" />
-                        {seller.routeIds.length}
+                        {seller.routeAssignments.length}
                       </span>
                     ) : (
                       <span className="text-xs text-muted-foreground">Sin rutas</span>
