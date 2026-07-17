@@ -1,20 +1,24 @@
-import type { RouteMacro, RouteMacroInput, RouteStatus } from "@/types";
-import { SEED_ROUTE_MACROS } from "@/data/seed";
-import { delay, uid } from "@/lib/utils";
+import type { RouteMacro, RouteMacroInput } from "@/types";
+import { SEED_ROUTE_MACROS, SEED_ROUTES, toMacroRouteRef } from "@/data/seed";
+import { delay, numId } from "@/lib/utils";
 import type { Paginated } from "./routes-service";
 
 export interface ListRouteMacrosParams {
   page?: number;
   limit?: number;
-  status?: RouteStatus | "all";
   search?: string;
 }
 
 /**
- * In-memory mutable repository standing in for the sale.route_macros REST
- * resource. Kept module level so mutations survive navigation within the session.
+ * In-memory mutable repository standing in for the route-macros REST resource.
+ * Kept module level so mutations survive navigation within the session.
  */
 let MACROS: RouteMacro[] = [...SEED_ROUTE_MACROS];
+
+/** Resolve selected route ids (numeric, API-style) into embedded route summaries. */
+function refsFromRouteIds(routeIds: number[]) {
+  return SEED_ROUTES.filter((r) => routeIds.includes(numId(r.id))).map(toMacroRouteRef);
+}
 
 export const routeMacrosService = {
   list: (): Promise<RouteMacro[]> => delay([...MACROS], 500),
@@ -23,15 +27,10 @@ export const routeMacrosService = {
   listPaged: ({
     page = 1,
     limit = 8,
-    status = "all",
     search = "",
   }: ListRouteMacrosParams = {}): Promise<Paginated<RouteMacro>> => {
     const q = search.trim().toLowerCase();
-    const filtered = MACROS.filter(
-      (m) =>
-        (status === "all" || m.status === status) &&
-        (!q || m.name.toLowerCase().includes(q)),
-    );
+    const filtered = MACROS.filter((m) => !q || m.name.toLowerCase().includes(q));
     const totalItems = filtered.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / limit));
     const safePage = Math.min(Math.max(1, page), totalPages);
@@ -39,34 +38,32 @@ export const routeMacrosService = {
     return delay({ data, pagination: { page: safePage, limit, totalItems, totalPages } }, 450);
   },
 
-  get: (id: string): Promise<RouteMacro | undefined> =>
+  get: (id: number): Promise<RouteMacro | undefined> =>
     delay(MACROS.find((m) => m.id === id), 300),
 
   create: (input: RouteMacroInput): Promise<RouteMacro> => {
-    const now = new Date().toISOString();
+    const nextId = MACROS.reduce((max, m) => Math.max(max, m.id), 0) + 1;
     const macro: RouteMacro = {
-      id: uid("mrt"),
-      ...input,
-      createdAt: now,
-      updatedAt: now,
+      id: nextId,
+      name: input.name,
+      routes: refsFromRouteIds(input.routeIds),
     };
     MACROS = [macro, ...MACROS];
     return delay(macro, 500);
   },
 
-  update: (id: string, input: RouteMacroInput): Promise<RouteMacro> => {
-    const now = new Date().toISOString();
+  update: (id: number, input: RouteMacroInput): Promise<RouteMacro> => {
     let updated: RouteMacro | undefined;
     MACROS = MACROS.map((m) => {
       if (m.id !== id) return m;
-      updated = { ...m, ...input, updatedAt: now };
+      updated = { ...m, name: input.name, routes: refsFromRouteIds(input.routeIds) };
       return updated;
     });
     if (!updated) return Promise.reject(new Error("Macroruta no encontrada"));
     return delay(updated, 500);
   },
 
-  remove: (id: string): Promise<{ id: string }> => {
+  remove: (id: number): Promise<{ id: number }> => {
     MACROS = MACROS.filter((m) => m.id !== id);
     return delay({ id }, 400);
   },

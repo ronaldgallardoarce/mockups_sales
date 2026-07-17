@@ -10,6 +10,8 @@ import { buildVertexMesh } from "@/lib/vertex-mesh";
 interface BlocksEditorProps {
   blocks: Block[];
   counts: Map<string, number>;
+  /** When false, the per-block client-count badges are hidden (only polygons). */
+  showCounts: boolean;
   selectedId: string | null;
   editShapeId: string | null;
   warnIds: string[];
@@ -24,6 +26,12 @@ interface BlocksEditorProps {
    * per-block Geoman behavior).
    */
   linkVertices: boolean;
+  /**
+   * When true, a drawn polygon is persisted immediately (no confirm dialog) and
+   * the polygon draw tool is re-armed so the user can chain manzano after
+   * manzano without re-clicking the toolbar button.
+   */
+  autoSave: boolean;
   onCreate: (polygon: LatLng[]) => void;
   onUpdateGeometry: (id: string, polygon: LatLng[]) => void;
   onSelect: (id: string) => void;
@@ -126,6 +134,14 @@ export function BlocksEditor(props: BlocksEditorProps) {
       const coords = coordsFromLayer(layer);
       map.removeLayer(layer); // persisted via store, then re-rendered from state
       cbs.current.onCreate(coords);
+      // Auto-save mode: re-arm the polygon tool so drawing keeps going. Deferred
+      // to the next tick so Geoman finishes tearing down the current draw session
+      // before a new one starts.
+      if (cbs.current.autoSave) {
+        setTimeout(() => {
+          if (cbs.current.autoSave) map.pm.enableDraw("Polygon");
+        }, 0);
+      }
     };
     map.on("pm:create", handleCreate);
 
@@ -146,7 +162,7 @@ export function BlocksEditor(props: BlocksEditorProps) {
 
   // ---- Reconcile store blocks with map layers ----
   useEffect(() => {
-    const { blocks, counts, selectedId, editShapeId, warnIds } = props;
+    const { blocks, counts, showCounts, selectedId, editShapeId, warnIds } = props;
     const seen = new Set<string>();
 
     for (const block of blocks) {
@@ -232,8 +248,8 @@ export function BlocksEditor(props: BlocksEditorProps) {
       }
       entry.poly.setStyle(style);
 
-      // Badge: only when the block currently holds at least one client.
-      if (count > 0) {
+      // Badge: only when counts are enabled and the block holds ≥1 client.
+      if (showCounts && count > 0) {
         if (entry.badge) {
           entry.badge.setLatLng([clat, clng]);
           entry.badge.setIcon(

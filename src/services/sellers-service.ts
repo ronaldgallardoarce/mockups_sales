@@ -1,7 +1,72 @@
-import type { Seller, SellerRouteAssignment, SellerStatus } from "@/types";
-import { SEED_SELLERS } from "@/data/seed";
-import { delay } from "@/lib/utils";
+import type {
+  Seller,
+  SellerDetail,
+  SellerDetailRoute,
+  SellerRouteAssignment,
+  SellerStatus,
+} from "@/types";
+import { SEED_SELLERS, SEED_ROUTES, SEED_BLOCKS, SEED_CLIENTS } from "@/data/seed";
+import { getSubcanal } from "@/data/channels";
+import { pointInPolygon } from "@/lib/geo";
+import { delay, numId } from "@/lib/utils";
 import type { Paginated } from "./routes-service";
+
+/** Builds the "ver vendedor" detail payload from seed data for a given seller. */
+function buildSellerDetail(seller: Seller): SellerDetail {
+  const assignRoutes: SellerDetailRoute[] = seller.routeAssignments
+    .map((assignment): SellerDetailRoute | null => {
+      const route = SEED_ROUTES.find((r) => r.id === assignment.routeId);
+      if (!route) return null;
+
+      const blocks = SEED_BLOCKS.filter((b) => route.blockIds.includes(b.id)).map((block, i) => {
+        const customers = SEED_CLIENTS.filter(
+          (c) =>
+            route.subcanalIds.includes(c.subcanalId) &&
+            pointInPolygon([c.lat, c.lng], block.polygon),
+        ).map((c) => ({
+          customerId: numId(c.id),
+          ownerId: numId(c.id) + 3000,
+          ownerNamer: c.ownerName,
+          latitude: c.lat,
+          longitud: c.lng,
+          customerName: c.name,
+          subchannelName: getSubcanal(c.subcanalId)?.name ?? "",
+          subchannelId: numId(c.subcanalId),
+          assigned: true,
+        }));
+        return {
+          code: numId(block.id) * 10 + i,
+          name: `manzano ${i + 1}`,
+          // Backend sends coordinates as a stringified array of {latitude, longitude}.
+          coordinates: JSON.stringify(
+            block.polygon.map(([latitude, longitude]) => ({ latitude, longitude })),
+          ),
+          customers,
+        };
+      });
+
+      return {
+        id: numId(route.id),
+        name: route.name,
+        color: route.color,
+        active_flag: route.status === "active",
+        distributorId: 9,
+        valid_from: route.startDate,
+        valid_to: route.endDate,
+        blocks,
+      };
+    })
+    .filter((r): r is SellerDetailRoute => r !== null);
+
+  return {
+    name: seller.name,
+    user: seller.email.split("@")[0].toUpperCase(),
+    email: seller.email,
+    activeFlag: seller.status === "ACTIVO",
+    avatar: "url",
+    assignRoutes,
+  };
+}
 
 export interface ListSellersParams {
   page?: number;
@@ -40,6 +105,12 @@ export const sellersService = {
 
   get: (code: number): Promise<Seller | undefined> =>
     delay(SELLERS.find((s) => s.code === code), 300),
+
+  /** Full seller detail ("ver vendedor"): profile + assigned routes with blocks & customers. */
+  getDetail: (code: number): Promise<SellerDetail | undefined> => {
+    const seller = SELLERS.find((s) => s.code === code);
+    return delay(seller ? buildSellerDetail(seller) : undefined, 400);
+  },
 
   /** Persists the seller's full route assignments (replace, not merge). */
   updateRoutes: (code: number, routeAssignments: SellerRouteAssignment[]): Promise<Seller> => {

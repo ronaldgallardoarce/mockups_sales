@@ -42,7 +42,7 @@ export function SellersPage() {
     return { start, end };
   }, [page, pageSize, totalItems]);
 
-  const goToAssign = (seller: Seller) => navigate(`/sellers/${seller.code}/assign`);
+  const goToDetail = (seller: Seller) => navigate(`/sellers/${seller.code}`);
 
   return (
     <>
@@ -93,7 +93,7 @@ export function SellersPage() {
         />
       ) : (
         <div className={isFetching && !isLoading ? "opacity-70 transition-opacity" : undefined}>
-          <SellersTable sellers={rows} loading={isLoading} onAssignRoute={goToAssign} />
+          <SellersTable sellers={rows} loading={isLoading} onView={goToDetail} />
         </div>
       )}
 

@@ -37,7 +37,7 @@ export function RouteActions({ route, onView, onDelete }: RouteActionsProps) {
           className="text-destructive focus:text-destructive"
           onClick={() => onDelete(route)}
         >
-          <Trash2 /> Eliminar
+          <Trash2 /> Deshabilitar
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

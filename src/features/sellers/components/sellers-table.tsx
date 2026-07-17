@@ -8,10 +8,10 @@ import { SellerActions } from "./seller-actions";
 interface SellersTableProps {
   sellers: Seller[];
   loading?: boolean;
-  onAssignRoute: (seller: Seller) => void;
+  onView: (seller: Seller) => void;
 }
 
-export function SellersTable({ sellers, loading, onAssignRoute }: SellersTableProps) {
+export function SellersTable({ sellers, loading, onView }: SellersTableProps) {
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
       <Table className="text-[13px] [&_td]:py-2">
@@ -41,7 +41,7 @@ export function SellersTable({ sellers, loading, onAssignRoute }: SellersTablePr
                 <TableRow
                   key={seller.code}
                   className="group cursor-pointer"
-                  onClick={() => onAssignRoute(seller)}
+                  onClick={() => onView(seller)}
                 >
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {seller.code}

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Grid3x3, Pencil, Route as RouteIcon } from "lucide-react";
+import { CalendarDays, Grid3x3, Pencil, Route as RouteIcon } from "lucide-react";
 import type { Route, RouteMacro } from "@/types";
 import {
   Sheet,
@@ -12,8 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ColorDot } from "@/components/common/channel-badge";
-import { StatusBadge } from "@/features/routes/components/status-badge";
 import { useRoutes } from "@/hooks/use-routes";
+import { formatDate, numId } from "@/lib/utils";
 import { MacroRoutesMap } from "./macro-routes-map";
 
 interface RouteMacroDetailSheetProps {
@@ -26,17 +26,19 @@ export function RouteMacroDetailSheet({ macro, open, onOpenChange }: RouteMacroD
   const navigate = useNavigate();
   const { data: allRoutes = [] } = useRoutes();
 
-  const routes = useMemo<Route[]>(() => {
+  // Resolve the macro's embedded route summaries back to full seed routes (for
+  // the map geometry, which isn't part of the macro list payload).
+  const mapRoutes = useMemo<Route[]>(() => {
     if (!macro) return [];
-    const byId = new Map(allRoutes.map((r) => [r.id, r]));
-    return macro.routeIds.map((id) => byId.get(id)).filter((r): r is Route => !!r);
+    const ids = new Set(macro.routes.map((r) => r.id));
+    return allRoutes.filter((r) => ids.has(numId(r.id)));
   }, [macro, allRoutes]);
 
   const blockCount = useMemo(() => {
     const blocks = new Set<string>();
-    routes.forEach((r) => r.blockIds.forEach((b) => blocks.add(b)));
+    mapRoutes.forEach((r) => r.blockIds.forEach((b) => blocks.add(b)));
     return blocks.size;
-  }, [routes]);
+  }, [mapRoutes]);
 
   if (!macro) return null;
 
@@ -46,13 +48,14 @@ export function RouteMacroDetailSheet({ macro, open, onOpenChange }: RouteMacroD
         <SheetHeader className="space-y-2 border-b p-6 text-left">
           <SheetTitle className="text-xl">{macro.name}</SheetTitle>
           <SheetDescription className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={macro.status} />
             <span className="inline-flex items-center gap-1 text-xs">
-              <RouteIcon className="h-3.5 w-3.5" /> {macro.routeIds.length} rutas
+              <RouteIcon className="h-3.5 w-3.5" /> {macro.routes.length} rutas
             </span>
-            <span className="inline-flex items-center gap-1 text-xs">
-              <Grid3x3 className="h-3.5 w-3.5" /> {blockCount} manzanos
-            </span>
+            {blockCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs">
+                <Grid3x3 className="h-3.5 w-3.5" /> {blockCount} manzanos
+              </span>
+            )}
           </SheetDescription>
         </SheetHeader>
 
@@ -62,16 +65,16 @@ export function RouteMacroDetailSheet({ macro, open, onOpenChange }: RouteMacroD
               Rutas incluidas
             </h4>
             <div className="space-y-1.5">
-              {routes.map((route) => (
-                <div
-                  key={route.id}
-                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
-                >
-                  <ColorDot color={route.color} className="h-3 w-3 shrink-0" />
-                  <span className="min-w-0 flex-1 truncate font-medium">{route.name}</span>
-                  <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                    <Grid3x3 className="h-3 w-3" /> {route.blockIds.length}
-                  </span>
+              {macro.routes.map((route) => (
+                <div key={route.id} className="rounded-lg border px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <ColorDot color={route.color} className="h-3 w-3 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate font-medium">{route.name}</span>
+                  </div>
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CalendarDays className="h-3 w-3" />
+                    {formatDate(route.valid_from)} – {formatDate(route.valid_to)}
+                  </p>
                 </div>
               ))}
             </div>
@@ -84,7 +87,7 @@ export function RouteMacroDetailSheet({ macro, open, onOpenChange }: RouteMacroD
               Cobertura en mapa
             </h4>
             <div className="h-64">
-              <MacroRoutesMap routes={routes} />
+              <MacroRoutesMap routes={mapRoutes} />
             </div>
           </section>
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layers, Plus, Search, X } from "lucide-react";
-import type { RouteMacro, RouteStatus } from "@/types";
+import type { RouteMacro } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDeleteRouteMacro, useRouteMacrosPaged } from "@/hooks/use-route-macros";
-import { useRoutes } from "@/hooks/use-routes";
 import { RouteMacrosTable } from "../components/route-macros-table";
 import { RouteMacroDetailSheet } from "../components/route-macro-detail-sheet";
 
@@ -21,30 +20,25 @@ export function RouteMacrosListPage() {
   const deleteMacro = useDeleteRouteMacro();
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<RouteStatus | "all">("all");
   const [pageSize, setPageSize] = useState(8);
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<RouteMacro | null>(null);
   const [toDelete, setToDelete] = useState<RouteMacro | null>(null);
 
   // Server-side filtering: go back to page 1 whenever the filters/size change.
-  useEffect(() => setPage(1), [search, status, pageSize]);
+  useEffect(() => setPage(1), [search, pageSize]);
 
   const { data, isLoading, isFetching } = useRouteMacrosPaged({
     page,
     limit: pageSize,
-    status,
     search,
   });
-  const { data: routes = [] } = useRoutes();
-
-  const routesById = useMemo(() => new Map(routes.map((r) => [r.id, r])), [routes]);
 
   const rows = data?.data ?? [];
   const pagination = data?.pagination;
   const totalItems = pagination?.totalItems ?? 0;
   const totalPages = pagination?.totalPages ?? 1;
-  const hasFilters = search !== "" || status !== "all";
+  const hasFilters = search !== "";
 
   // Keep the current page valid if the total shrinks (e.g. after a delete).
   useEffect(() => {
@@ -79,24 +73,8 @@ export function RouteMacrosListPage() {
             className="pl-9"
           />
         </div>
-        <Select value={status} onValueChange={(v) => setStatus(v as RouteStatus | "all")}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="active">Activas</SelectItem>
-            <SelectItem value="inactive">Inactivas</SelectItem>
-          </SelectContent>
-        </Select>
         {hasFilters && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setSearch("");
-              setStatus("all");
-            }}
-          >
+          <Button variant="ghost" onClick={() => setSearch("")}>
             <X className="h-4 w-4" /> Limpiar
           </Button>
         )}
@@ -123,7 +101,6 @@ export function RouteMacrosListPage() {
         <div className={isFetching && !isLoading ? "opacity-70 transition-opacity" : undefined}>
           <RouteMacrosTable
             macros={rows}
-            routesById={routesById}
             loading={isLoading}
             onView={setDetail}
             onDelete={setToDelete}

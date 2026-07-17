@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { RouteMacro, RouteMacroInput, RouteStatus } from "@/types";
+import type { RouteMacro, RouteMacroInput } from "@/types";
 import { routeMacrosService, type ListRouteMacrosParams } from "@/services/route-macros-service";
 import { queryKeys } from "@/lib/query-client";
 
@@ -14,7 +14,6 @@ export function useRouteMacros() {
 export interface UseRouteMacrosPagedParams {
   page: number;
   limit: number;
-  status: RouteStatus | "all";
   search: string;
 }
 
@@ -27,11 +26,11 @@ export function useRouteMacrosPaged(params: UseRouteMacrosPagedParams) {
   });
 }
 
-export function useRouteMacro(id: string | undefined) {
+export function useRouteMacro(id: number | undefined) {
   return useQuery({
     queryKey: queryKeys.routeMacro(id ?? "new"),
-    queryFn: () => routeMacrosService.get(id as string),
-    enabled: !!id,
+    queryFn: () => routeMacrosService.get(id as number),
+    enabled: id !== undefined,
   });
 }
 
@@ -50,7 +49,7 @@ export function useCreateRouteMacro() {
 export function useUpdateRouteMacro() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: RouteMacroInput }) =>
+    mutationFn: ({ id, input }: { id: number; input: RouteMacroInput }) =>
       routeMacrosService.update(id, input),
     onSuccess: (macro) => {
       qc.invalidateQueries({ queryKey: queryKeys.routeMacros });
@@ -64,7 +63,7 @@ export function useUpdateRouteMacro() {
 export function useDeleteRouteMacro() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => routeMacrosService.remove(id),
+    mutationFn: (id: number) => routeMacrosService.remove(id),
     // Optimistic removal from the cached list.
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: queryKeys.routeMacros });

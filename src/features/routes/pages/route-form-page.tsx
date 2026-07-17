@@ -23,6 +23,11 @@ import { RouteMapSelector } from "../components/route-map-selector";
 import { SelectedClientsSection } from "../components/selected-clients-section";
 
 const today = () => new Date().toISOString().slice(0, 10);
+const oneYearLater = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+};
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -58,6 +63,7 @@ export function RouteFormPage() {
       subcanalIds: [],
       blockIds: [],
       startDate: today(),
+      endDate: oneYearLater(),
     },
   });
 
@@ -72,6 +78,7 @@ export function RouteFormPage() {
         subcanalIds: existing.subcanalIds,
         blockIds: existing.blockIds,
         startDate: existing.startDate.slice(0, 10),
+        endDate: existing.endDate.slice(0, 10),
       });
     }
   }, [existing, reset]);
@@ -184,10 +191,17 @@ export function RouteFormPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="startDate">Fecha de inicio</Label>
-                <Input id="startDate" type="date" {...register("startDate")} />
-                <FieldError message={errors.startDate?.message} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Fecha de inicio</Label>
+                  <Input id="startDate" type="date" {...register("startDate")} />
+                  <FieldError message={errors.startDate?.message} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">Fecha de fin</Label>
+                  <Input id="endDate" type="date" {...register("endDate")} />
+                  <FieldError message={errors.endDate?.message} />
+                </div>
               </div>
 
               <div className="space-y-2">

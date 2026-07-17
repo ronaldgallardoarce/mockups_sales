@@ -10,12 +10,12 @@ import { useCreateRouteMacro, useRouteMacro, useUpdateRouteMacro } from "@/hooks
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorDot } from "@/components/common/channel-badge";
 import { PageHeader } from "@/components/common/page-header";
+import { numId } from "@/lib/utils";
 import { RouteMultiSelect } from "../components/route-multiselect";
 import { MacroRoutesMap } from "../components/macro-routes-map";
 
@@ -27,10 +27,11 @@ function FieldError({ message }: { message?: string }) {
 export function RouteMacroFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
+  const numericId = id ? Number(id) : undefined;
   const navigate = useNavigate();
 
   const { data: routes = [], isLoading: loadingRoutes } = useRoutes();
-  const { data: existing, isLoading: loadingMacro } = useRouteMacro(id);
+  const { data: existing, isLoading: loadingMacro } = useRouteMacro(numericId);
   const createMacro = useCreateRouteMacro();
   const updateMacro = useUpdateRouteMacro();
 
@@ -45,24 +46,21 @@ export function RouteMacroFormPage() {
     resolver: zodResolver(routeMacroSchema),
     defaultValues: {
       name: "",
-      status: "active",
       routeIds: [],
     },
   });
 
-  // Hydrate the form when editing.
+  // Hydrate when editing: map the macro's numeric route ids back to the seed's
+  // string ids the multiselect works with. Needs the routes list loaded too.
   useEffect(() => {
-    if (existing) {
-      reset({
-        name: existing.name,
-        status: existing.status,
-        routeIds: existing.routeIds,
-      });
+    if (existing && routes.length) {
+      const ids = new Set(existing.routes.map((r) => r.id));
+      const stringIds = routes.filter((r) => ids.has(numId(r.id))).map((r) => r.id);
+      reset({ name: existing.name, routeIds: stringIds });
     }
-  }, [existing, reset]);
+  }, [existing, routes, reset]);
 
   const routeIds = watch("routeIds");
-  const status = watch("status");
 
   const selectedRoutes = useMemo<Route[]>(() => {
     const byId = new Map(routes.map((r) => [r.id, r]));
@@ -82,10 +80,12 @@ export function RouteMacroFormPage() {
     });
 
   const onSubmit = async (values: RouteMacroFormValues) => {
-    if (isEdit && id) {
-      await updateMacro.mutateAsync({ id, input: values });
+    // The API works with numeric route ids; convert the selected string ids.
+    const input = { name: values.name, routeIds: values.routeIds.map(numId) };
+    if (isEdit && numericId !== undefined) {
+      await updateMacro.mutateAsync({ id: numericId, input });
     } else {
-      await createMacro.mutateAsync(values);
+      await createMacro.mutateAsync(input);
     }
     navigate("/route-macros");
   };
@@ -120,26 +120,11 @@ export function RouteMacroFormPage() {
       </PageHeader>
 
       <Card className="mb-4">
-        <CardContent className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <CardContent className="p-5">
           <div className="space-y-2">
             <Label htmlFor="name">Nombre de la macroruta</Label>
             <Input id="name" placeholder="Ej. Macro Trinidad Centro" {...register("name")} />
             <FieldError message={errors.name?.message} />
-          </div>
-          <div className="space-y-2">
-            <Label>Estado</Label>
-            <div className="flex h-9 items-center gap-3 rounded-md border px-3">
-              <Switch
-                checked={status === "active"}
-                onCheckedChange={(v) =>
-                  setValue("status", v ? "active" : "inactive", { shouldDirty: true })
-                }
-                id="status"
-              />
-              <Label htmlFor="status" className="cursor-pointer font-normal">
-                {status === "active" ? "Activa" : "Inactiva"}
-              </Label>
-            </div>
           </div>
         </CardContent>
       </Card>

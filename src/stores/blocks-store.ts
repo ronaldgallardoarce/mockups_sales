@@ -58,8 +58,9 @@ export const useBlocksStore = create<BlocksState>()(
     {
       name: "route-mgmt-blocks",
       // Bump version to drop older persisted blocks (channel-based / square seeds,
-      // and the Trinidad-centered coordinates before the move to Santa Cruz).
-      version: 4,
+      // Trinidad-centered coords, and the generated grid before the real
+      // Santa Cruz manzanos became the default seed).
+      version: 5,
       migrate: () => ({ blocks: SEED_BLOCKS }),
     },
   ),

@@ -28,6 +28,14 @@ export function useSeller(code: number | undefined) {
   });
 }
 
+export function useSellerDetail(code: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.sellerDetail(code ?? "new"),
+    queryFn: () => sellersService.getDetail(code as number),
+    enabled: code !== undefined,
+  });
+}
+
 export function useUpdateSellerRoutes() {
   const qc = useQueryClient();
   return useMutation({

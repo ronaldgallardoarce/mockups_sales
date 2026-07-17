@@ -16,9 +16,9 @@ export const queryKeys = {
     ["routes", "paged", params] as const,
   route: (id: string) => ["routes", id] as const,
   routeMacros: ["route-macros"] as const,
-  routeMacrosPaged: (params: { page: number; limit: number; status: string; search: string }) =>
+  routeMacrosPaged: (params: { page: number; limit: number; search: string }) =>
     ["route-macros", "paged", params] as const,
-  routeMacro: (id: string) => ["route-macros", id] as const,
+  routeMacro: (id: number | string) => ["route-macros", id] as const,
   channels: ["channels"] as const,
   subcanales: ["subcanales"] as const,
   clients: ["clients"] as const,
@@ -27,4 +27,5 @@ export const queryKeys = {
   sellersPaged: (params: { page: number; limit: number; status: string; search: string }) =>
     ["sellers", "paged", params] as const,
   seller: (code: number | string) => ["sellers", code] as const,
+  sellerDetail: (code: number | string) => ["sellers", code, "detail"] as const,
 };

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Grid3x3, Pencil, Users } from "lucide-react";
+import { CalendarDays, Pencil, Users } from "lucide-react";
 import type { Route } from "@/types";
 import {
   Sheet,
@@ -41,9 +41,6 @@ export function RouteDetailSheet({ route, open, onOpenChange }: RouteDetailSheet
             </span>
             <span className="inline-flex items-center gap-1 text-xs">
               <Users className="h-3.5 w-3.5" /> {route.clientCount} clientes
-            </span>
-            <span className="inline-flex items-center gap-1 text-xs">
-              <Grid3x3 className="h-3.5 w-3.5" /> {route.blockIds.length} manzanos
             </span>
           </SheetDescription>
         </SheetHeader>

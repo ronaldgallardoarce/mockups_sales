@@ -8,6 +8,7 @@ import { RouteMacroFormPage } from "@/features/route-macros/pages/route-macro-fo
 import { ManageMapPage } from "@/features/map/pages/manage-map-page";
 import { ClientsPage } from "@/features/clients/pages/clients-page";
 import { SellersPage } from "@/features/sellers/pages/sellers-page";
+import { SellerDetailPage } from "@/features/sellers/pages/seller-detail-page";
 import { SellerAssignRoutePage } from "@/features/sellers/pages/seller-assign-route-page";
 
 export function App() {
@@ -24,6 +25,7 @@ export function App() {
         <Route path="map" element={<ManageMapPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="sellers" element={<SellersPage />} />
+        <Route path="sellers/:code" element={<SellerDetailPage />} />
         <Route path="sellers/:code/assign" element={<SellerAssignRoutePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

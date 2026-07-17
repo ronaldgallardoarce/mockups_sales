@@ -5,7 +5,7 @@ export const routeMacroSchema = z.object({
     .string()
     .min(3, "El nombre debe tener al menos 3 caracteres")
     .max(50, "Máximo 50 caracteres"),
-  status: z.enum(["active", "inactive"]),
+  // Selected route ids (the seed's string ids); converted to numeric ids on submit.
   routeIds: z.array(z.string()).min(1, "Selecciona al menos una ruta"),
 });
 

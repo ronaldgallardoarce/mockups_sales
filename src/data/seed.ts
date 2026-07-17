@@ -1,13 +1,12 @@
-import type { Block, Client, DayCode, Polygon, Route, RouteMacro, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
-import { seededRandom } from "@/lib/utils";
-import { SANTA_CRUZ_CENTER, pointInPolygon } from "@/lib/geo";
+import type { Block, Client, DayCode, MacroRouteRef, Polygon, Route, RouteMacro, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
+import { numId, seededRandom } from "@/lib/utils";
+import { pointInPolygon } from "@/lib/geo";
 import { CHANNELS, SUBCANALES, getSubcanalesByChannel } from "./channels";
+import { SANTA_CRUZ_BLOCKS } from "./blocks-data";
 
 const rand = seededRandom(20260714);
 const pick = <T>(arr: T[]): T => arr[Math.floor(rand() * arr.length)];
 const between = (min: number, max: number) => min + rand() * (max - min);
-
-const [CLAT, CLNG] = SANTA_CRUZ_CENTER;
 
 const STORE_PREFIX = [
   "Tienda", "Comercial", "Distribuidora", "Minimarket", "Abarrotes",
@@ -23,29 +22,34 @@ const OWNER_FIRST = ["Juan", "María", "Carlos", "Ana", "Luis", "Rosa", "Pedro",
 const OWNER_LAST = ["Suárez", "Justiniano", "Rivero", "Vaca", "Áñez", "Moreno", "Roca", "Guzmán", "Melgar", "Ribera"];
 const STREETS = ["Av. 6 de Agosto", "Calle La Paz", "Av. Cipriano Barace", "Calle Nicolás Suárez", "Av. Bolívar", "Calle Sucre", "Av. Ganadera", "Calle Vaca Díez"];
 
-/** Build an irregular block-shaped polygon (5–7 vertices) centered at (lat,lng). */
-function makeBlock(lat: number, lng: number, size: number): Polygon {
-  const n = 5 + Math.floor(rand() * 3); // 5..7 vertices
-  const base = size / 2;
-  const poly: Polygon = [];
-  for (let i = 0; i < n; i++) {
-    const angle = (i / n) * Math.PI * 2 + (rand() - 0.5) * 0.55;
-    const r = base * (0.6 + rand() * 0.5);
-    poly.push([lat + Math.sin(angle) * r, lng + Math.cos(angle) * r]);
-  }
-  return poly;
-}
-
 function polygonCentroid(poly: Polygon): [number, number] {
   const n = poly.length;
   const s = poly.reduce<[number, number]>((a, [la, ln]) => [a[0] + la, a[1] + ln], [0, 0]);
   return [s[0] / n, s[1] / n];
 }
 
-// ---- Blocks (manzanos): grid around the city center ----------------------
-const COLS = 8;
-const ROWS = 6;
-const CELL = 0.0055; // ~600 m
+/** Axis-aligned bounding box covering every given polygon. */
+function bboxOf(polys: Polygon[]) {
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const poly of polys) {
+    for (const [la, ln] of poly) {
+      minLat = Math.min(minLat, la); maxLat = Math.max(maxLat, la);
+      minLng = Math.min(minLng, ln); maxLng = Math.max(maxLng, ln);
+    }
+  }
+  return { minLat, maxLat, minLng, maxLng };
+}
+
+/** A random point that actually falls inside the polygon (rejection sampling). */
+function randomPointInPolygon(poly: Polygon): [number, number] {
+  const { minLat, maxLat, minLng, maxLng } = bboxOf([poly]);
+  for (let i = 0; i < 40; i++) {
+    const la = between(minLat, maxLat);
+    const ln = between(minLng, maxLng);
+    if (pointInPolygon([la, ln], poly)) return [la, ln];
+  }
+  return polygonCentroid(poly);
+}
 
 // Weighted channel distribution for clients (TRADICIONAL dominates).
 const CHANNEL_WEIGHTS: string[] = [
@@ -56,40 +60,13 @@ const CHANNEL_WEIGHTS: string[] = [
   ...Array(2).fill("ch_panaderia"),
 ];
 
-/** Blocks are pure geographic sectors: only a polygon + auto label. */
-function buildBlocks(): Block[] {
-  const blocks: Block[] = [];
-  let n = 0;
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      // Skip a few cells so the grid isn't perfectly full (~40 blocks).
-      if (rand() < 0.16) continue;
-      const lat = CLAT + (r - ROWS / 2) * CELL;
-      const lng = CLNG + (c - COLS / 2) * CELL;
-      n += 1;
-      blocks.push({
-        id: `blk_${String(n).padStart(3, "0")}`,
-        polygon: makeBlock(lat, lng, CELL * 0.82),
-        createdAt: new Date(2025, 0, 1 + n).toISOString(),
-      });
-    }
-  }
-  return blocks;
-}
+// ---- Blocks (manzanos): real polygons drawn over Santa Cruz de la Sierra --
+export const SEED_BLOCKS: Block[] = SANTA_CRUZ_BLOCKS;
 
-export const SEED_BLOCKS: Block[] = buildBlocks();
-
-// ---- Clients: positioned near blocks, channel assigned independently ------
+// ---- Clients: some inside the manzanos, some scattered outside them --------
 function buildClients(): Client[] {
   const clients: Client[] = [];
-  const target = 46;
-  let i = 0;
-  while (clients.length < target) {
-    const block = SEED_BLOCKS[i % SEED_BLOCKS.length];
-    i += 1;
-    // ~60% of blocks host a client on each pass.
-    if (rand() < 0.4) continue;
-    const [blat, blng] = polygonCentroid(block.polygon);
+  const push = (lat: number, lng: number) => {
     // Channel / subcanal are properties of the client, not of the block.
     const channelId = pick(CHANNEL_WEIGHTS);
     const subs = getSubcanalesByChannel(channelId);
@@ -104,10 +81,36 @@ function buildClients(): Client[] {
       phone: `+591 ${Math.floor(between(6000000, 7999999))}`,
       subcanalId,
       channelId,
-      lat: blat + (rand() - 0.5) * CELL * 0.55,
-      lng: blng + (rand() - 0.5) * CELL * 0.55,
+      lat,
+      lng,
     });
+  };
+
+  // Inside: most manzanos host 1-2 clients placed within their polygon.
+  for (const block of SEED_BLOCKS) {
+    const n = rand() < 0.78 ? (rand() < 0.4 ? 2 : 1) : 0;
+    for (let k = 0; k < n; k++) {
+      const [la, ln] = randomPointInPolygon(block.polygon);
+      push(la, ln);
+    }
   }
+
+  // Outside: scattered points across the overall area that fall in NO manzano,
+  // so the map also shows clients that no route currently covers.
+  const bounds = bboxOf(SEED_BLOCKS.map((b) => b.polygon));
+  const padLat = (bounds.maxLat - bounds.minLat) * 0.06;
+  const padLng = (bounds.maxLng - bounds.minLng) * 0.06;
+  let added = 0;
+  let guard = 0;
+  while (added < 18 && guard < 3000) {
+    guard += 1;
+    const la = between(bounds.minLat - padLat, bounds.maxLat + padLat);
+    const ln = between(bounds.minLng - padLng, bounds.maxLng + padLng);
+    if (SEED_BLOCKS.some((b) => pointInPolygon([la, ln], b.polygon))) continue;
+    push(la, ln);
+    added += 1;
+  }
+
   return clients;
 }
 
@@ -157,6 +160,9 @@ function buildRoutes(): Route[] {
     }
     const zone = ZONES[i % ZONES.length];
     const created = new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27)));
+    const startDate = new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27)));
+    const endDate = new Date(startDate);
+    endDate.setFullYear(endDate.getFullYear() + 1);
     routes.push({
       id: `rt_${String(i + 1).padStart(3, "0")}`,
       name: `${pick(ROUTE_PREFIX)} ${i + 1} ${zone.toUpperCase()} · ${channel.name}`,
@@ -165,7 +171,8 @@ function buildRoutes(): Route[] {
       channelIds,
       subcanalIds,
       blockIds,
-      startDate: new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27))).toISOString(),
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
       clientCount: countClientsInBlocks(blockIds, subcanalIds),
       createdAt: created.toISOString(),
       updatedAt: created.toISOString(),
@@ -183,25 +190,34 @@ const MACRO_ZONES = [
   "Corredor Este", "Corredor Oeste",
 ];
 
+/** Map a seed Route into the summary shape embedded in a macro's payload. */
+export function toMacroRouteRef(route: Route): MacroRouteRef {
+  return {
+    id: numId(route.id),
+    name: route.name,
+    color: route.color,
+    activeFlag: route.status === "active",
+    distributorId: 9,
+    valid_from: route.startDate,
+    valid_to: route.endDate,
+  };
+}
+
 function buildRouteMacros(): RouteMacro[] {
   const macros: RouteMacro[] = [];
   for (let i = 0; i < 28; i++) {
-    // Each macro groups 2..6 distinct routes.
-    const routeIds: string[] = [];
+    // Each macro groups 2..6 distinct routes, embedded as summaries.
+    const picked: Route[] = [];
     const count = 2 + Math.floor(rand() * 5);
     for (let k = 0; k < count; k++) {
       const r = pick(SEED_ROUTES);
-      if (!routeIds.includes(r.id)) routeIds.push(r.id);
+      if (!picked.some((p) => p.id === r.id)) picked.push(r);
     }
     const zone = MACRO_ZONES[i % MACRO_ZONES.length];
-    const created = new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27)));
     macros.push({
-      id: `mrt_${String(i + 1).padStart(3, "0")}`,
+      id: i + 1,
       name: `MACRO ${zone.toUpperCase()}`,
-      status: rand() < 0.78 ? "active" : "inactive",
-      routeIds,
-      createdAt: created.toISOString(),
-      updatedAt: created.toISOString(),
+      routes: picked.map(toMacroRouteRef),
     });
   }
   return macros;

@@ -13,6 +13,10 @@ export const routeSchema = z.object({
   subcanalIds: z.array(z.string()).min(1, "Selecciona al menos un subcanal"),
   blockIds: z.array(z.string()).min(1, "Selecciona al menos un manzano en el mapa"),
   startDate: z.string().min(1, "La fecha de inicio es obligatoria"),
+  endDate: z.string().min(1, "La fecha de fin es obligatoria"),
+}).refine((v) => !v.startDate || !v.endDate || v.endDate >= v.startDate, {
+  message: "La fecha de fin debe ser igual o posterior a la de inicio",
+  path: ["endDate"],
 });
 
 export type RouteFormValues = z.infer<typeof routeSchema>;
