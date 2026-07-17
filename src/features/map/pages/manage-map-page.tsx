@@ -1,6 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Grid3x3, PencilRuler, RotateCcw, Trash2, Users, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Grid3x3,
+  PencilRuler,
+  RotateCcw,
+  Scissors,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import type { LatLng } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -14,7 +23,12 @@ import { BlockClientsSheet } from "../components/block-clients-sheet";
 import { GridSubdivideDialog } from "../components/grid-subdivide-dialog";
 import { useBlocksStore } from "@/stores/blocks-store";
 import { useClients } from "@/hooks/use-clients";
-import { countPointsInPolygon, pointInPolygon, polygonsOverlap } from "@/lib/geo";
+import {
+  countPointsInPolygon,
+  pointInPolygon,
+  polygonsOverlap,
+  splitPolygonByLine,
+} from "@/lib/geo";
 
 export function ManageMapPage() {
   const { blocks, addBlock, addBlocks, updateBlock, removeBlock, resetBlocks } = useBlocksStore();
@@ -27,6 +41,27 @@ export function ManageMapPage() {
   const [toDelete, setToDelete] = useState<string | null>(null);
   const [subdivideOpen, setSubdivideOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  /** "Guided cut" tool: active only for the currently selected block. */
+  const [cutMode, setCutMode] = useState(false);
+  const [cutAxis, setCutAxis] = useState<"lat" | "lng">("lat");
+  /** Whether dragging a shared vertex during shape editing also moves every
+   *  other block that shares it (default) or only the block being edited. */
+  const [linkVertices, setLinkVertices] = useState(true);
+  /** Polygon just drawn on the map, awaiting the user's confirmation to persist it. */
+  const [pendingPolygon, setPendingPolygon] = useState<LatLng[] | null>(null);
+
+  // Only one floating panel/dialog should be interactive at a time: whenever any
+  // Dialog/Sheet/ConfirmDialog is open, the absolutely-positioned selected-block
+  // panel (z-[400]) must yield instead of visually stacking on top of it.
+  const modalOpen =
+    clientsSheetOpen || subdivideOpen || !!toDelete || confirmReset || !!pendingPolygon;
+
+  // Cut mode's guide line isn't a Dialog/Sheet, so it doesn't gate on
+  // `modalOpen` above — but it should still get out of the way whenever an
+  // actual modal opens on top of it.
+  useEffect(() => {
+    if (modalOpen) setCutMode(false);
+  }, [modalOpen]);
 
   const clientPoints = useMemo<LatLng[]>(() => clients.map((c) => [c.lat, c.lng]), [clients]);
 
@@ -58,32 +93,83 @@ export function ManageMapPage() {
     [selected, clients],
   );
 
+  // Clears every per-block floating panel/dialog — used both when deselecting
+  // and when a new block is selected, so a stale panel/sheet from the
+  // previously selected block never stays open behind the new one.
   const deselect = () => {
     setSelectedId(null);
     setEditShapeId(null);
     setClientsSheetOpen(false);
+    setSubdivideOpen(false);
+    setToDelete(null);
+    setCutMode(false);
+    setLinkVertices(true);
   };
 
+  const selectBlock = (id: string) => {
+    setSelectedId(id);
+    setEditShapeId(null);
+    setClientsSheetOpen(false);
+    setSubdivideOpen(false);
+    setToDelete(null);
+    setCutMode(false);
+    setLinkVertices(true);
+  };
+
+  const pendingInside = useMemo(
+    () => (pendingPolygon ? countPointsInPolygon(clientPoints, pendingPolygon) : 0),
+    [pendingPolygon, clientPoints],
+  );
+
+  // Leaflet-Geoman already removes the just-drawn temporary layer as soon as
+  // `pm:create` fires (see blocks-editor.tsx), regardless of what happens
+  // next — so holding the polygon in state here and only persisting it via
+  // `addBlock` on confirmation is enough to make cancel a true no-op.
   const handleCreate = (polygon: LatLng[]) => {
-    const inside = countPointsInPolygon(clientPoints, polygon);
-    const block = addBlock({ polygon });
-    const overlaps = useBlocksStore.getState().findOverlaps(polygon, block.id).length > 0;
-    toast.success("Polígono creado", {
+    setPendingPolygon(polygon);
+  };
+
+  const confirmCreate = () => {
+    if (!pendingPolygon) return;
+    const inside = countPointsInPolygon(clientPoints, pendingPolygon);
+    const block = addBlock({ polygon: pendingPolygon });
+    const overlaps = useBlocksStore.getState().findOverlaps(pendingPolygon, block.id).length > 0;
+    toast.success("Manzano creado", {
       description: `${inside} ${inside === 1 ? "cliente" : "clientes"} dentro${
-        overlaps ? " · ⚠️ se solapa con otro polígono" : ""
+        overlaps ? " · ⚠️ se solapa con otro manzano" : ""
       }`,
     });
-    setSelectedId(block.id);
+    setPendingPolygon(null);
+    selectBlock(block.id);
   };
+
+  const cancelCreate = () => setPendingPolygon(null);
 
   const handleSubdivide = (cells: LatLng[][]) => {
     if (!selected || cells.length === 0) return;
     removeBlock(selected.id);
     addBlocks(cells.map((polygon) => ({ polygon })));
-    toast.success("Polígono subdividido", {
+    toast.success("Manzano subdividido", {
       description: `${cells.length} ${cells.length === 1 ? "manzano creado" : "manzanos creados"}`,
     });
     setSubdivideOpen(false);
+    deselect();
+  };
+
+  const handleCutConfirm = (axis: "lat" | "lng", value: number) => {
+    if (!selected) return;
+    const sides = splitPolygonByLine(selected.polygon, axis, value).filter(
+      (p) => p.length >= 3,
+    );
+    // The cut line missed the block (both sides empty/sliver) — keep cut mode
+    // active so the user can just try again without re-opening the tool.
+    if (sides.length === 0) return;
+    removeBlock(selected.id);
+    addBlocks(sides.map((polygon) => ({ polygon })));
+    toast.success("Manzano cortado", {
+      description: `${sides.length} ${sides.length === 1 ? "manzano creado" : "manzanos creados"}`,
+    });
+    setCutMode(false);
     deselect();
   };
 
@@ -91,7 +177,7 @@ export function ManageMapPage() {
     <>
       <PageHeader
         title="Gestionar Mapa"
-        description="Dibuja manzanos (sectores) para ubicar clientes por zona. Dibuja un polígono grande y subdivídelo en una grilla de manzanos, o crea cada uno por separado."
+        description="Dibuja manzanos (sectores) para ubicar clientes por zona. Dibuja un manzano grande y subdivídelo en una grilla de manzanos más pequeños, o crea cada uno por separado."
       >
         <div className="flex h-9 items-center gap-2.5 rounded-md border px-3">
           <Label htmlFor="toggle-clients" className="cursor-pointer text-xs font-normal">
@@ -122,23 +208,25 @@ export function ManageMapPage() {
             selectedId={selectedId}
             editShapeId={editShapeId}
             warnIds={warnIds}
+            cutMode={cutMode}
+            cutAxis={cutAxis}
+            linkVertices={linkVertices}
             onCreate={handleCreate}
             onUpdateGeometry={(id, polygon) => updateBlock(id, { polygon })}
-            onSelect={(id) => {
-              setSelectedId(id);
-              setEditShapeId(null);
-            }}
+            onSelect={selectBlock}
+            onCutConfirm={handleCutConfirm}
+            onCutCancel={() => setCutMode(false)}
           />
           {showClients && <ClientMarkers clients={clients} />}
         </BaseMap>
 
-        {/* Selected-block panel (edit shape / delete) */}
-        {selected && (
+        {/* Selected-block panel (edit shape / delete). Hidden while any
+            Dialog/Sheet/ConfirmDialog is open so it never stacks on top of it. */}
+        {selected && !modalOpen && (
           <div className="absolute left-1/2 top-3 z-[400] w-72 -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur animate-slide-up">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-semibold">Polígono</p>
-                <p className="font-mono text-[11px] text-muted-foreground">{selected.id}</p>
+                <p className="text-sm font-semibold">Manzano</p>
                 <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                   <Users className="h-3.5 w-3.5" />
                   {counts.get(selected.id) ?? 0} clientes en esta zona
@@ -153,11 +241,56 @@ export function ManageMapPage() {
               </button>
             </div>
 
-            {editShapeId === selected.id ? (
+            {cutMode ? (
+              <div className="mt-3 space-y-2">
+                <p className="rounded-md bg-muted px-2 py-1.5 text-xs text-muted-foreground">
+                  Mueve el cursor sobre el mapa y haz clic para cortar el manzano. Presiona Esc
+                  para cancelar.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={cutAxis === "lat" ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setCutAxis("lat")}
+                  >
+                    Horizontal
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={cutAxis === "lng" ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setCutAxis("lng")}
+                  >
+                    Vertical
+                  </Button>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setCutMode(false)}
+                >
+                  Cancelar corte
+                </Button>
+              </div>
+            ) : editShapeId === selected.id ? (
               <div className="mt-3 space-y-2">
                 <p className="rounded-md bg-muted px-2 py-1.5 text-xs text-muted-foreground">
                   Arrastra los vértices o el manzano para ajustar la forma.
                 </p>
+                <div className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5">
+                  <Label htmlFor="toggle-link-vertices" className="cursor-pointer text-xs font-normal">
+                    {linkVertices
+                      ? "Vincular vértices vecinos"
+                      : "Editar vértice independiente"}
+                  </Label>
+                  <Switch
+                    id="toggle-link-vertices"
+                    checked={linkVertices}
+                    onCheckedChange={setLinkVertices}
+                  />
+                </div>
                 <Button size="sm" className="w-full" onClick={() => setEditShapeId(null)}>
                   Listo
                 </Button>
@@ -182,6 +315,14 @@ export function ManageMapPage() {
                   onClick={() => setSubdivideOpen(true)}
                 >
                   <Grid3x3 className="h-4 w-4" /> Subdividir en grilla
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => setCutMode(true)}
+                >
+                  <Scissors className="h-4 w-4" /> Cortar manzano
                 </Button>
                 <div className="flex gap-2">
                   <Button
@@ -219,6 +360,18 @@ export function ManageMapPage() {
         onOpenChange={setSubdivideOpen}
         polygon={selected?.polygon ?? null}
         onConfirm={handleSubdivide}
+      />
+
+      <ConfirmDialog
+        open={!!pendingPolygon}
+        onOpenChange={(o) => !o && cancelCreate()}
+        title="¿Guardar este manzano?"
+        description={`Se creará un nuevo manzano con ${pendingInside} ${
+          pendingInside === 1 ? "cliente" : "clientes"
+        } dentro. Puedes cancelar para descartar el dibujo.`}
+        confirmLabel="Guardar"
+        cancelLabel="Descartar"
+        onConfirm={confirmCreate}
       />
 
       <ConfirmDialog

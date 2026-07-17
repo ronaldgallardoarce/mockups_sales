@@ -28,7 +28,7 @@ export function BlockClientsSheet({ open, onOpenChange, blockId, clients }: Bloc
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Store className="h-4 w-4" />
             </span>
-            Clientes del polígono
+            Clientes del manzano
           </SheetTitle>
           <SheetDescription>
             <span className="font-mono">{blockId}</span> ·{" "}

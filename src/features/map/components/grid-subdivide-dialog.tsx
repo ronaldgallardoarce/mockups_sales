@@ -100,7 +100,7 @@ export function GridSubdivideDialog({
             <Grid3x3 className="h-4 w-4" /> Subdividir en grilla
           </DialogTitle>
           <DialogDescription>
-            El polígono se dividirá en una grilla. Cada celda se convierte en un manzano
+            El manzano se dividirá en una grilla. Cada celda se convierte en un manzano
             independiente, recortado al borde para que no queden espacios vacíos.
           </DialogDescription>
         </DialogHeader>
