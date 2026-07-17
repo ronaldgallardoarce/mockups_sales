@@ -82,6 +82,28 @@ export interface RouteInput {
   startDate: string;
 }
 
+/**
+ * Macroruta — a named grouping of several routes (sale.route_macros +
+ * sale.route_macro_routes). It has no geography of its own: its coverage is the
+ * union of the manzanos of the routes it contains.
+ */
+export interface RouteMacro {
+  id: string;
+  name: string;
+  status: RouteStatus;
+  /** Routes that make up this macro (sale.route_macro_routes). */
+  routeIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload used by create / update macro forms. */
+export interface RouteMacroInput {
+  name: string;
+  status: RouteStatus;
+  routeIds: string[];
+}
+
 export type SellerStatus = "ACTIVO" | "INACTIVO";
 
 /** Week positions within a month (1 = first week, 4 = last week). */

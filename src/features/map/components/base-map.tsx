@@ -1,7 +1,7 @@
 import { MapContainer, LayersControl, TileLayer } from "react-leaflet";
 import type { LatLngExpression } from "leaflet";
 import { cn } from "@/lib/utils";
-import { DEFAULT_ZOOM, TRINIDAD_CENTER } from "@/lib/geo";
+import { DEFAULT_ZOOM, SANTA_CRUZ_CENTER } from "@/lib/geo";
 
 interface BaseMapProps {
   center?: LatLngExpression;
@@ -13,7 +13,7 @@ interface BaseMapProps {
 }
 
 export function BaseMap({
-  center = TRINIDAD_CENTER,
+  center = SANTA_CRUZ_CENTER,
   zoom = DEFAULT_ZOOM,
   className,
   children,

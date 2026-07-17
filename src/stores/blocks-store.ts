@@ -57,8 +57,9 @@ export const useBlocksStore = create<BlocksState>()(
     }),
     {
       name: "route-mgmt-blocks",
-      // Bump version to drop older persisted blocks (channel-based / square seeds).
-      version: 3,
+      // Bump version to drop older persisted blocks (channel-based / square seeds,
+      // and the Trinidad-centered coordinates before the move to Santa Cruz).
+      version: 4,
       migrate: () => ({ blocks: SEED_BLOCKS }),
     },
   ),

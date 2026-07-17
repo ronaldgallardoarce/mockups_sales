@@ -1,13 +1,13 @@
-import type { Block, Client, DayCode, Polygon, Route, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
+import type { Block, Client, DayCode, Polygon, Route, RouteMacro, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
 import { seededRandom } from "@/lib/utils";
-import { TRINIDAD_CENTER, pointInPolygon } from "@/lib/geo";
+import { SANTA_CRUZ_CENTER, pointInPolygon } from "@/lib/geo";
 import { CHANNELS, SUBCANALES, getSubcanalesByChannel } from "./channels";
 
 const rand = seededRandom(20260714);
 const pick = <T>(arr: T[]): T => arr[Math.floor(rand() * arr.length)];
 const between = (min: number, max: number) => min + rand() * (max - min);
 
-const [CLAT, CLNG] = TRINIDAD_CENTER;
+const [CLAT, CLNG] = SANTA_CRUZ_CENTER;
 
 const STORE_PREFIX = [
   "Tienda", "Comercial", "Distribuidora", "Minimarket", "Abarrotes",
@@ -175,6 +175,39 @@ function buildRoutes(): Route[] {
 }
 
 export const SEED_ROUTES: Route[] = buildRoutes();
+
+// ---- Macrorutas ------------------------------------------------------------
+const MACRO_ZONES = [
+  "Trinidad", "Beni Norte", "Beni Sur", "Centro Histórico", "Periférico",
+  "Cercado", "Mamoré", "Ganadera", "Comercial", "Zona Franca",
+  "Corredor Este", "Corredor Oeste",
+];
+
+function buildRouteMacros(): RouteMacro[] {
+  const macros: RouteMacro[] = [];
+  for (let i = 0; i < 28; i++) {
+    // Each macro groups 2..6 distinct routes.
+    const routeIds: string[] = [];
+    const count = 2 + Math.floor(rand() * 5);
+    for (let k = 0; k < count; k++) {
+      const r = pick(SEED_ROUTES);
+      if (!routeIds.includes(r.id)) routeIds.push(r.id);
+    }
+    const zone = MACRO_ZONES[i % MACRO_ZONES.length];
+    const created = new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27)));
+    macros.push({
+      id: `mrt_${String(i + 1).padStart(3, "0")}`,
+      name: `MACRO ${zone.toUpperCase()}`,
+      status: rand() < 0.78 ? "active" : "inactive",
+      routeIds,
+      createdAt: created.toISOString(),
+      updatedAt: created.toISOString(),
+    });
+  }
+  return macros;
+}
+
+export const SEED_ROUTE_MACROS: RouteMacro[] = buildRouteMacros();
 
 // ---- Sellers (Vendedores) --------------------------------------------------
 function buildRandomFrequency(): { weeks: WeekPosition[]; days: DayCode[] } {
