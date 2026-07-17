@@ -111,7 +111,7 @@ export function ChannelMultiSelect({ channels, value, onChange, loading }: Chann
                       >
                         <span
                           className={cn(
-                            "flex h-4 w-4 items-center justify-center rounded-[4px] border",
+                            "flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border",
                             isSel
                               ? "border-primary bg-primary text-primary-foreground"
                               : "border-input",
@@ -120,8 +120,8 @@ export function ChannelMultiSelect({ channels, value, onChange, loading }: Chann
                           {isSel && <Check className="h-3 w-3" />}
                         </span>
                         <ColorDot color={ch.color} />
-                        <span className="flex-1">
-                          <span className="block font-medium">{ch.name}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{ch.name}</span>
                           {ch.description && (
                             <span className="hidden truncate text-xs text-muted-foreground sm:block">
                               {ch.description}

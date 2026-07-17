@@ -35,7 +35,7 @@ function centroid(polygon: Polygon): LatLng {
 }
 
 /** Axis-aligned bounding box of a polygon. */
-function bbox(polygon: Polygon) {
+export function bbox(polygon: Polygon) {
   let minLat = Infinity,
     maxLat = -Infinity,
     minLng = Infinity,
@@ -121,12 +121,12 @@ function clipHalfPlane(
 }
 
 /** Crossing point of segment a→b with the horizontal line lat = L. */
-const crossLat = (a: LatLng, b: LatLng, L: number): LatLng => {
+export const crossLat = (a: LatLng, b: LatLng, L: number): LatLng => {
   const t = (L - a[0]) / (b[0] - a[0]);
   return [L, a[1] + t * (b[1] - a[1])];
 };
 /** Crossing point of segment a→b with the vertical line lng = L. */
-const crossLng = (a: LatLng, b: LatLng, L: number): LatLng => {
+export const crossLng = (a: LatLng, b: LatLng, L: number): LatLng => {
   const t = (L - a[1]) / (b[1] - a[1]);
   return [a[0] + t * (b[0] - a[0]), L];
 };
@@ -181,6 +181,34 @@ export function subdivideIntoGrid(polygon: Polygon, rows: number, cols: number):
     }
   }
   return cells;
+}
+
+/**
+ * Split a polygon in two along a straight axis-aligned line (`lat = value` or
+ * `lng = value`), built the same way `clipPolygonToBox` is: one `clipHalfPlane`
+ * call per side of the line. A resulting side is dropped (empty array) if it
+ * has fewer than 3 points or ~zero area — mirrors the `minArea` pattern used
+ * in `subdivideIntoGrid`.
+ */
+export function splitPolygonByLine(
+  polygon: Polygon,
+  axis: "lat" | "lng",
+  value: number,
+): [Polygon, Polygon] {
+  if (polygon.length < 3) return [[], []];
+  const minArea = polygonArea(polygon) * 1e-4;
+  const [sideA, sideB] =
+    axis === "lat"
+      ? [
+          clipHalfPlane(polygon, (q) => q[0] <= value, (a, b) => crossLat(a, b, value)),
+          clipHalfPlane(polygon, (q) => q[0] >= value, (a, b) => crossLat(a, b, value)),
+        ]
+      : [
+          clipHalfPlane(polygon, (q) => q[1] <= value, (a, b) => crossLng(a, b, value)),
+          clipHalfPlane(polygon, (q) => q[1] >= value, (a, b) => crossLng(a, b, value)),
+        ];
+  const valid = (p: Polygon) => p.length >= 3 && polygonArea(p) > minArea;
+  return [valid(sideA) ? sideA : [], valid(sideB) ? sideB : []];
 }
 
 export { centroid };
