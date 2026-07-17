@@ -9,7 +9,9 @@
       "Bash(curl *)",
       "Bash(gh auth *)",
       "Bash(git mv *)",
-      "Bash(cd *)"
+      "Bash(cd *)",
+      "mcp__plugin_engram_engram__mem_search",
+      "mcp__plugin_engram_engram__mem_save"
     ]
   }
 }
