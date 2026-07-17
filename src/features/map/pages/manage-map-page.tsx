@@ -4,11 +4,12 @@ import {
   AlertTriangle,
   Grid3x3,
   PencilRuler,
-  RotateCcw,
+  // RotateCcw, // (Restablecer deshabilitado por el momento)
   Scissors,
   Trash2,
   Users,
   X,
+  Zap,
 } from "lucide-react";
 import type { LatLng } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
@@ -34,7 +35,14 @@ export function ManageMapPage() {
   const { blocks, addBlock, addBlocks, updateBlock, removeBlock, resetBlocks } = useBlocksStore();
   const { data: clients = [] } = useClients();
 
-  const [showClients, setShowClients] = useState(false);
+  /**
+   * How clients are shown on the map. A single 3-state control (instead of a
+   * boolean toggle plus a conditional filter switch) keeps the header stable —
+   * no controls appear/disappear as the user changes their mind.
+   */
+  const [clientView, setClientView] = useState<"hidden" | "all" | "outside">("hidden");
+  const showClients = clientView !== "hidden";
+  const onlyOutsideBlocks = clientView === "outside";
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editShapeId, setEditShapeId] = useState<string | null>(null);
   const [clientsSheetOpen, setClientsSheetOpen] = useState(false);
@@ -49,6 +57,12 @@ export function ManageMapPage() {
   const [linkVertices, setLinkVertices] = useState(true);
   /** Polygon just drawn on the map, awaiting the user's confirmation to persist it. */
   const [pendingPolygon, setPendingPolygon] = useState<LatLng[] | null>(null);
+  /**
+   * When on, drawn manzanos are saved directly (no confirm dialog) and the draw
+   * tool stays armed to chain one after another. When off, each drawing opens
+   * the confirmation dialog before persisting.
+   */
+  const [autoSave, setAutoSave] = useState(false);
 
   // Only one floating panel/dialog should be interactive at a time: whenever any
   // Dialog/Sheet/ConfirmDialog is open, the absolutely-positioned selected-block
@@ -64,6 +78,16 @@ export function ManageMapPage() {
   }, [modalOpen]);
 
   const clientPoints = useMemo<LatLng[]>(() => clients.map((c) => [c.lat, c.lng]), [clients]);
+
+  // Clients that don't fall inside any block polygon. Computed once so both the
+  // "Sin manzano" counter and the filtered map share a single source of truth.
+  const outsideClients = useMemo(
+    () => clients.filter((c) => !blocks.some((b) => pointInPolygon([c.lat, c.lng], b.polygon))),
+    [clients, blocks],
+  );
+
+  // Clients rendered on the map for the current view.
+  const visibleClients = onlyOutsideBlocks ? outsideClients : clients;
 
   // Clients inside each block (purely by location, any channel).
   const counts = useMemo(() => {
@@ -121,26 +145,38 @@ export function ManageMapPage() {
     [pendingPolygon, clientPoints],
   );
 
-  // Leaflet-Geoman already removes the just-drawn temporary layer as soon as
-  // `pm:create` fires (see blocks-editor.tsx), regardless of what happens
-  // next — so holding the polygon in state here and only persisting it via
-  // `addBlock` on confirmation is enough to make cancel a true no-op.
-  const handleCreate = (polygon: LatLng[]) => {
-    setPendingPolygon(polygon);
-  };
-
-  const confirmCreate = () => {
-    if (!pendingPolygon) return;
-    const inside = countPointsInPolygon(clientPoints, pendingPolygon);
-    const block = addBlock({ polygon: pendingPolygon });
-    const overlaps = useBlocksStore.getState().findOverlaps(pendingPolygon, block.id).length > 0;
+  /** Persist a drawn polygon and toast its client count / overlap warning. */
+  const persistBlock = (polygon: LatLng[], select: boolean) => {
+    const inside = countPointsInPolygon(clientPoints, polygon);
+    const block = addBlock({ polygon });
+    const overlaps = useBlocksStore.getState().findOverlaps(polygon, block.id).length > 0;
     toast.success("Manzano creado", {
       description: `${inside} ${inside === 1 ? "cliente" : "clientes"} dentro${
         overlaps ? " · ⚠️ se solapa con otro manzano" : ""
       }`,
     });
+    // In auto-save mode we skip selection so the floating panel doesn't pop up
+    // and interrupt the continuous drawing flow.
+    if (select) selectBlock(block.id);
+    return block;
+  };
+
+  // Leaflet-Geoman already removes the just-drawn temporary layer as soon as
+  // `pm:create` fires (see blocks-editor.tsx), regardless of what happens
+  // next — so holding the polygon in state here and only persisting it via
+  // `addBlock` on confirmation is enough to make cancel a true no-op.
+  const handleCreate = (polygon: LatLng[]) => {
+    if (autoSave) {
+      persistBlock(polygon, false);
+    } else {
+      setPendingPolygon(polygon);
+    }
+  };
+
+  const confirmCreate = () => {
+    if (!pendingPolygon) return;
+    persistBlock(pendingPolygon, true);
     setPendingPolygon(null);
-    selectBlock(block.id);
   };
 
   const cancelCreate = () => setPendingPolygon(null);
@@ -180,14 +216,48 @@ export function ManageMapPage() {
         description="Dibuja manzanos (sectores) para ubicar clientes por zona. Dibuja un manzano grande y subdivídelo en una grilla de manzanos más pequeños, o crea cada uno por separado."
       >
         <div className="flex h-9 items-center gap-2.5 rounded-md border px-3">
-          <Label htmlFor="toggle-clients" className="cursor-pointer text-xs font-normal">
-            Mostrar clientes
+          <Label
+            htmlFor="toggle-autosave"
+            className="flex cursor-pointer items-center gap-1.5 text-xs font-normal"
+          >
+            <Zap className={`h-3.5 w-3.5 ${autoSave ? "text-amber-500" : "text-muted-foreground"}`} />
+            Guardado automático
           </Label>
-          <Switch id="toggle-clients" checked={showClients} onCheckedChange={setShowClients} />
+          <Switch id="toggle-autosave" checked={autoSave} onCheckedChange={setAutoSave} />
         </div>
+        <div className="flex h-9 shrink-0 items-center gap-2 rounded-md border pl-3 pr-1">
+          <span className="whitespace-nowrap text-xs font-normal text-muted-foreground">
+            Clientes
+          </span>
+          <div className="flex h-7 items-center gap-0.5 rounded-md bg-muted p-0.5">
+            {(
+              [
+                { value: "hidden", label: "Ocultar" },
+                { value: "all", label: "Todos" },
+                { value: "outside", label: `Sin manzano (${outsideClients.length})` },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setClientView(opt.value)}
+                aria-pressed={clientView === opt.value}
+                className={`flex h-full items-center whitespace-nowrap rounded-sm px-2.5 text-xs font-medium leading-none transition-colors ${
+                  clientView === opt.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Restablecer deshabilitado por el momento.
         <Button variant="outline" onClick={() => setConfirmReset(true)}>
           <RotateCcw className="h-4 w-4" /> Restablecer
         </Button>
+        */}
       </PageHeader>
 
       {warnIds.length > 0 && (
@@ -205,19 +275,21 @@ export function ManageMapPage() {
           <BlocksEditor
             blocks={blocks}
             counts={counts}
+            showCounts={!showClients}
             selectedId={selectedId}
             editShapeId={editShapeId}
             warnIds={warnIds}
             cutMode={cutMode}
             cutAxis={cutAxis}
             linkVertices={linkVertices}
+            autoSave={autoSave}
             onCreate={handleCreate}
             onUpdateGeometry={(id, polygon) => updateBlock(id, { polygon })}
             onSelect={selectBlock}
             onCutConfirm={handleCutConfirm}
             onCutCancel={() => setCutMode(false)}
           />
-          {showClients && <ClientMarkers clients={clients} />}
+          {showClients && <ClientMarkers clients={visibleClients} />}
         </BaseMap>
 
         {/* Selected-block panel (edit shape / delete). Hidden while any

@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import type { Route } from "@/types";
+import type { RouteMacro } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,13 +10,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface RouteActionsProps {
-  route: Route;
-  onView: (route: Route) => void;
-  onDelete: (route: Route) => void;
+interface RouteMacroActionsProps {
+  macro: RouteMacro;
+  onView: (macro: RouteMacro) => void;
+  onDelete: (macro: RouteMacro) => void;
 }
 
-export function RouteActions({ route, onView, onDelete }: RouteActionsProps) {
+export function RouteMacroActions({ macro, onView, onDelete }: RouteMacroActionsProps) {
   const navigate = useNavigate();
   return (
     <DropdownMenu>
@@ -26,18 +26,18 @@ export function RouteActions({ route, onView, onDelete }: RouteActionsProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem onClick={() => onView(route)}>
+        <DropdownMenuItem onClick={() => onView(macro)}>
           <Eye /> Ver detalle
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate(`/routes/${route.id}/edit`)}>
+        <DropdownMenuItem onClick={() => navigate(`/route-macros/${macro.id}/edit`)}>
           <Pencil /> Editar
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
-          onClick={() => onDelete(route)}
+          onClick={() => onDelete(macro)}
         >
-          <Trash2 /> Deshabilitar
+          <Trash2 /> Eliminar
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -1,4 +1,5 @@
-import { LayoutDashboard, Map, Route, Store, Users, type LucideIcon } from "lucide-react";
+// LayoutDashboard and Store stay imported-commented for the disabled nav items below.
+import { Layers, /* LayoutDashboard, */ Map, Route, /* Store, */ Users, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   title: string;
@@ -8,12 +9,12 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  {
-    title: "Dashboard",
-    to: "/",
-    icon: LayoutDashboard,
-    description: "Resumen general del microservicio de rutas",
-  },
+  // {
+  //   title: "Dashboard",
+  //   to: "/",
+  //   icon: LayoutDashboard,
+  //   description: "Resumen general del microservicio de rutas",
+  // },
   {
     title: "Rutas",
     to: "/routes",
@@ -21,17 +22,23 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Administra las rutas de pre-venta",
   },
   {
+    title: "Macrorutas",
+    to: "/route-macros",
+    icon: Layers,
+    description: "Agrupa varias rutas bajo una macroruta",
+  },
+  {
     title: "Gestionar Mapa",
     to: "/map",
     icon: Map,
     description: "Crea y edita manzanos sobre el mapa",
   },
-  {
-    title: "Mercados/Clientes",
-    to: "/clients",
-    icon: Store,
-    description: "Clientes por canal y subcanal",
-  },
+  // {
+  //   title: "Mercados/Clientes",
+  //   to: "/clients",
+  //   icon: Store,
+  //   description: "Clientes por canal y subcanal",
+  // },
   {
     title: "Vendedores",
     to: "/sellers",

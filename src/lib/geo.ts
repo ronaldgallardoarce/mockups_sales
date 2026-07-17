@@ -1,7 +1,7 @@
 import type { LatLng, Polygon } from "@/types";
 
-/** Trinidad, Beni, Bolivia — default map center. */
-export const TRINIDAD_CENTER: LatLng = [-14.834, -64.901];
+/** Santa Cruz de la Sierra, Bolivia — default map center. */
+export const SANTA_CRUZ_CENTER: LatLng = [-17.783, -63.182];
 export const DEFAULT_ZOOM = 14;
 
 /** Ray-casting point-in-polygon test. */

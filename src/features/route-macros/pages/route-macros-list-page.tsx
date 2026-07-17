@@ -1,36 +1,46 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Users, X } from "lucide-react";
-import type { Seller, SellerStatus } from "@/types";
+import { Layers, Plus, Search, X } from "lucide-react";
+import type { RouteMacro } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Pagination } from "@/components/common/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useSellersPaged } from "@/hooks/use-sellers";
-import { SellersTable } from "../components/sellers-table";
+import { useDeleteRouteMacro, useRouteMacrosPaged } from "@/hooks/use-route-macros";
+import { RouteMacrosTable } from "../components/route-macros-table";
+import { RouteMacroDetailSheet } from "../components/route-macro-detail-sheet";
 
 const PAGE_SIZE_OPTIONS = [8, 10, 20, 50];
 
-export function SellersPage() {
+export function RouteMacrosListPage() {
   const navigate = useNavigate();
+  const deleteMacro = useDeleteRouteMacro();
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<SellerStatus | "all">("all");
   const [pageSize, setPageSize] = useState(8);
   const [page, setPage] = useState(1);
+  const [detail, setDetail] = useState<RouteMacro | null>(null);
+  const [toDelete, setToDelete] = useState<RouteMacro | null>(null);
 
-  useEffect(() => setPage(1), [search, status, pageSize]);
+  // Server-side filtering: go back to page 1 whenever the filters/size change.
+  useEffect(() => setPage(1), [search, pageSize]);
 
-  const { data, isLoading, isFetching } = useSellersPaged({ page, limit: pageSize, status, search });
+  const { data, isLoading, isFetching } = useRouteMacrosPaged({
+    page,
+    limit: pageSize,
+    search,
+  });
 
   const rows = data?.data ?? [];
   const pagination = data?.pagination;
   const totalItems = pagination?.totalItems ?? 0;
   const totalPages = pagination?.totalPages ?? 1;
-  const hasFilters = search !== "" || status !== "all";
+  const hasFilters = search !== "";
 
+  // Keep the current page valid if the total shrinks (e.g. after a delete).
   useEffect(() => {
     if (pagination && page > pagination.totalPages) setPage(pagination.totalPages);
   }, [pagination, page]);
@@ -42,11 +52,16 @@ export function SellersPage() {
     return { start, end };
   }, [page, pageSize, totalItems]);
 
-  const goToDetail = (seller: Seller) => navigate(`/sellers/${seller.code}`);
-
   return (
     <>
-      <PageHeader title="Vendedores" description="Vendedores y su asignación de rutas de pre-venta." />
+      <PageHeader
+        title="Macrorutas"
+        description="Agrupa varias rutas bajo una macroruta."
+      >
+        <Button onClick={() => navigate("/route-macros/new")}>
+          <Plus className="h-4 w-4" /> Nueva macroruta
+        </Button>
+      </PageHeader>
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
@@ -54,28 +69,12 @@ export function SellersPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, código o correo…"
+            placeholder="Buscar por nombre de macroruta…"
             className="pl-9"
           />
         </div>
-        <Select value={status} onValueChange={(v) => setStatus(v as SellerStatus | "all")}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="ACTIVO">Activos</SelectItem>
-            <SelectItem value="INACTIVO">Inactivos</SelectItem>
-          </SelectContent>
-        </Select>
         {hasFilters && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setSearch("");
-              setStatus("all");
-            }}
-          >
+          <Button variant="ghost" onClick={() => setSearch("")}>
             <X className="h-4 w-4" /> Limpiar
           </Button>
         )}
@@ -83,17 +82,29 @@ export function SellersPage() {
 
       {!isLoading && totalItems === 0 ? (
         <EmptyState
-          icon={Users}
-          title={hasFilters ? "Sin resultados" : "Aún no hay vendedores"}
+          icon={Layers}
+          title={hasFilters ? "Sin resultados" : "Aún no hay macrorutas"}
           description={
             hasFilters
-              ? "Ajusta la búsqueda o los filtros para encontrar vendedores."
-              : "Los vendedores registrados aparecerán aquí."
+              ? "Ajusta la búsqueda o los filtros para encontrar macrorutas."
+              : "Crea tu primera macroruta para agrupar rutas."
+          }
+          action={
+            !hasFilters && (
+              <Button onClick={() => navigate("/route-macros/new")}>
+                <Plus className="h-4 w-4" /> Nueva macroruta
+              </Button>
+            )
           }
         />
       ) : (
         <div className={isFetching && !isLoading ? "opacity-70 transition-opacity" : undefined}>
-          <SellersTable sellers={rows} loading={isLoading} onView={goToDetail} />
+          <RouteMacrosTable
+            macros={rows}
+            loading={isLoading}
+            onView={setDetail}
+            onDelete={setToDelete}
+          />
         </div>
       )}
 
@@ -128,6 +139,28 @@ export function SellersPage() {
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
+
+      <RouteMacroDetailSheet
+        macro={detail}
+        open={!!detail}
+        onOpenChange={(o) => !o && setDetail(null)}
+      />
+
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(o) => !o && setToDelete(null)}
+        title={`¿Eliminar “${toDelete?.name}”?`}
+        description="Esta acción no se puede deshacer. La macroruta será eliminada permanentemente."
+        confirmLabel="Eliminar"
+        destructive
+        loading={deleteMacro.isPending}
+        onConfirm={() => {
+          if (toDelete) {
+            deleteMacro.mutate(toDelete.id);
+            setToDelete(null);
+          }
+        }}
+      />
     </>
   );
 }

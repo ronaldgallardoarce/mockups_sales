@@ -65,7 +65,9 @@ export interface Route {
   subcanalIds: string[];
   /** Manzanos (block ids) that compose the route's geographic coverage. */
   blockIds: string[];
+  /** Validity window (valid_from / valid_to in the backend). */
   startDate: string;
+  endDate: string;
   clientCount: number;
   createdAt: string;
   updatedAt: string;
@@ -80,6 +82,38 @@ export interface RouteInput {
   subcanalIds: string[];
   blockIds: string[];
   startDate: string;
+  endDate: string;
+}
+
+/**
+ * A route as embedded in a macro's list payload — a summary (no blocks). Field
+ * names mirror the backend response verbatim (activeFlag / valid_from / valid_to).
+ */
+export interface MacroRouteRef {
+  id: number;
+  name: string;
+  color: string;
+  activeFlag: boolean;
+  distributorId: number;
+  valid_from: string;
+  valid_to: string;
+}
+
+/**
+ * Macroruta — a named grouping of several routes. The list endpoint returns the
+ * macro's routes embedded as summaries (see MacroRouteRef); it has no geometry
+ * of its own.
+ */
+export interface RouteMacro {
+  id: number;
+  name: string;
+  routes: MacroRouteRef[];
+}
+
+/** Payload used by create / update macro forms (send the selected route ids). */
+export interface RouteMacroInput {
+  name: string;
+  routeIds: number[];
 }
 
 export type SellerStatus = "ACTIVO" | "INACTIVO";
@@ -124,6 +158,51 @@ export interface RouteFrequency {
 export interface SellerRouteAssignment {
   routeId: string;
   frequency: RouteFrequency;
+}
+
+/**
+ * Seller detail response ("ver vendedor"). Field names mirror the backend
+ * payload verbatim (including active_flag / valid_from / longitud / ownerNamer
+ * and the stringified `coordinates`) so the real API response drops in as-is.
+ */
+export interface SellerDetailCustomer {
+  customerId: number;
+  ownerId: number;
+  ownerNamer: string;
+  latitude: number;
+  longitud: number;
+  customerName: string;
+  subchannelName: string;
+  subchannelId: number;
+  assigned: boolean;
+}
+
+export interface SellerDetailBlock {
+  code: number;
+  name: string;
+  /** JSON string: `[{'latitude':-20,'longitude':-50}, …]`. */
+  coordinates: string;
+  customers: SellerDetailCustomer[];
+}
+
+export interface SellerDetailRoute {
+  id: number;
+  name: string;
+  color: string;
+  active_flag: boolean;
+  distributorId: number;
+  valid_from: string;
+  valid_to: string;
+  blocks: SellerDetailBlock[];
+}
+
+export interface SellerDetail {
+  name: string;
+  user: string;
+  email: string;
+  activeFlag: boolean;
+  avatar: string;
+  assignRoutes: SellerDetailRoute[];
 }
 
 /**

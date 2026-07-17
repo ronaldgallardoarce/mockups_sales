@@ -39,3 +39,13 @@ export function formatDate(iso: string) {
 export function uid(prefix = "id") {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
+
+/**
+ * Numeric id from a mock string id like "rt_012" → 12. Used to mirror the real
+ * API (which uses numeric ids) from the seed's string-id entities. Falls back to
+ * a char-sum when the id has no digits, so it stays deterministic and reversible.
+ */
+export function numId(id: string): number {
+  const digits = id.replace(/\D/g, "");
+  return digits ? Number(digits) : Math.abs([...id].reduce((a, c) => a + c.charCodeAt(0), 0));
+}
