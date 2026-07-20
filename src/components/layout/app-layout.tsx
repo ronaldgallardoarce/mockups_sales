@@ -10,7 +10,7 @@ export function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[1800px] p-4 sm:p-6 lg:p-8 animate-fade-in">
+          <div className="mx-auto w-full max-w-[1800px] px-4 py-4 sm:px-6 sm:py-4 lg:px-8 lg:py-5 animate-fade-in">
             <Outlet />
           </div>
         </main>

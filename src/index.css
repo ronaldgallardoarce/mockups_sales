@@ -148,6 +148,30 @@
   border-color: hsl(240 8% 12%);
 }
 
+/* Excluded client pin — same teardrop shape as a normal pin, red with an X */
+.client-pin-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: #ef4444;
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+}
+.client-pin-x-mark {
+  transform: rotate(45deg);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+.dark .client-pin-x {
+  border-color: hsl(240 8% 12%);
+}
+
 /* Highlighted (focused) client pin — pulsing ring */
 .client-pin-highlight {
   width: 20px;

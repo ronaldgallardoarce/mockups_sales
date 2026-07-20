@@ -8,11 +8,13 @@ import {
   Phone,
   Plus,
   Save,
+  Table2,
   Users,
   X,
 } from "lucide-react";
 import type { Client, Route, SellerRouteAssignment } from "@/types";
 import { WEEKDAY_DAYS } from "@/types";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +29,8 @@ import { useSeller, useUpdateSellerRoutes } from "@/hooks/use-sellers";
 import { useRoutes } from "@/hooks/use-routes";
 import { groupSubcanalesByChannel, getChannel, getSubcanal } from "@/data/channels";
 import { SellerCoverageMap } from "../components/seller-coverage-map";
+import { CoverageClientsTable } from "../components/coverage-clients-table";
+import { RouteClientsModal } from "../components/route-clients-modal";
 import { RoutePickerDialog } from "../components/route-picker-dialog";
 import { RouteFrequencyPopover } from "../components/route-frequency-popover";
 import { SelectedClientsSection } from "@/features/routes/components/selected-clients-section";
@@ -66,6 +70,26 @@ export function SellerAssignRoutePage() {
   const [routeAssignments, setRouteAssignments] = useState<SellerRouteAssignment[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [focusClient, setFocusClient] = useState<Client | null>(null);
+  const [excludedClientIds, setExcludedClientIds] = useState<Set<string>>(new Set());
+  const [manualClientIds, setManualClientIds] = useState<Set<string>>(new Set());
+  const [coverageView, setCoverageView] = useState<"map" | "table">("map");
+  const [clientsRoute, setClientsRoute] = useState<Route | null>(null);
+
+  const withToggle = (id: string, value: boolean) => (prev: Set<string>) => {
+    const next = new Set(prev);
+    if (value) next.add(id);
+    else next.delete(id);
+    return next;
+  };
+
+  const toggleExcludeClient = (client: Client) => {
+    setExcludedClientIds((prev) => withToggle(client.id, !prev.has(client.id))(prev));
+  };
+  const setClientExcluded = (id: string, value: boolean) => setExcludedClientIds(withToggle(id, value));
+  const setClientManual = (id: string, value: boolean) => setManualClientIds(withToggle(id, value));
+  const toggleManualClient = (client: Client) => {
+    setManualClientIds((prev) => withToggle(client.id, !prev.has(client.id))(prev));
+  };
 
   useEffect(() => {
     if (seller) setRouteAssignments(seller.routeAssignments);
@@ -276,9 +300,14 @@ export function SellerAssignRoutePage() {
                         <div className="flex items-center gap-2.5">
                           <ColorDot color={route.color} />
                           <span className="min-w-0 flex-1 truncate font-medium">{route.name}</span>
-                          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                          <button
+                            type="button"
+                            onClick={() => setClientsRoute(route)}
+                            className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            title="Ver y gestionar clientes de la ruta"
+                          >
                             <Users className="h-3 w-3" /> {route.clientCount}
-                          </span>
+                          </button>
                           <StatusBadge status={route.status} />
                           <button
                             type="button"
@@ -304,17 +333,72 @@ export function SellerAssignRoutePage() {
             </CardContent>
           </Card>
 
-          <SelectedClientsSection subcanalIds={derivedSubcanalIds} blockIds={assignedBlockIds} clients={clients} onClientClick={setFocusClient} />
+          <SelectedClientsSection
+            subcanalIds={derivedSubcanalIds}
+            blockIds={assignedBlockIds}
+            clients={clients}
+            onClientClick={setFocusClient}
+            excludedClientIds={excludedClientIds}
+            onToggleExclude={toggleExcludeClient}
+          />
         </div>
 
-        {/* ---- Coverage map column ---- */}
+        {/* ---- Coverage column: map or table ---- */}
         <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-8rem)]">
-          <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPinned className="h-4 w-4" />
-            Cobertura por ruta — cada color es la ruta asignada
+          <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <MapPinned className="h-4 w-4" />
+              {coverageView === "map"
+                ? "Cobertura por ruta — cada color es la ruta asignada"
+                : "Clientes en cobertura — incluir o excluir"}
+            </span>
+            <div className="flex shrink-0 overflow-hidden rounded-md border text-xs">
+              <button
+                type="button"
+                onClick={() => setCoverageView("map")}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 transition-colors",
+                  coverageView === "map"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent",
+                )}
+              >
+                <MapPinned className="h-3.5 w-3.5" /> Mapa
+              </button>
+              <button
+                type="button"
+                onClick={() => setCoverageView("table")}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 transition-colors",
+                  coverageView === "table"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent",
+                )}
+              >
+                <Table2 className="h-3.5 w-3.5" /> Tabla
+              </button>
+            </div>
           </div>
           <div className="h-[460px] lg:h-[calc(100%-2rem)]">
-            <SellerCoverageMap routes={assignedRoutes} focusClient={focusClient} />
+            {coverageView === "map" ? (
+              <SellerCoverageMap
+                routes={assignedRoutes}
+                focusClient={focusClient}
+                excludedClientIds={excludedClientIds}
+                manualClientIds={manualClientIds}
+                onToggleExclude={toggleExcludeClient}
+              />
+            ) : (
+              <CoverageClientsTable
+                clients={clients}
+                subcanalIds={derivedSubcanalIds}
+                blockIds={assignedBlockIds}
+                excludedClientIds={excludedClientIds}
+                manualClientIds={manualClientIds}
+                onToggleExclude={toggleExcludeClient}
+                onToggleManual={toggleManualClient}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -324,6 +408,16 @@ export function SellerAssignRoutePage() {
         onOpenChange={setPickerOpen}
         candidates={candidateRoutes}
         onPick={(route) => addRoute(route)}
+      />
+
+      <RouteClientsModal
+        route={clientsRoute}
+        open={!!clientsRoute}
+        onOpenChange={(o) => !o && setClientsRoute(null)}
+        excludedClientIds={excludedClientIds}
+        manualClientIds={manualClientIds}
+        setClientExcluded={setClientExcluded}
+        setClientManual={setClientManual}
       />
     </>
   );

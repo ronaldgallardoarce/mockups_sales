@@ -9,6 +9,19 @@
 
 export type LatLng = [number, number];
 
+/** System roles. The signed-in user's role gates features across the app. */
+export type Role = "administrador" | "supervisor" | "vendedor";
+
+/** A signed-in user (mocked). Supervisors carry the sales channel they oversee. */
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  /** Sales channel the user oversees (e.g. a supervisor of "tradicional"). */
+  channelName?: string;
+}
+
 /** A polygon ring: list of [lat, lng] points. */
 export type Polygon = LatLng[];
 
@@ -42,6 +55,10 @@ export interface Client {
   channelId: string;
   lat: number;
   lng: number;
+  /** Average monthly purchase of the client (Bs). */
+  ticketPromedio: number;
+  /** Single-visit sale generated when the seller visits (Bs). */
+  dropSize: number;
 }
 
 /**
@@ -61,10 +78,15 @@ export interface Route {
   name: string;
   color: string;
   status: RouteStatus;
+  /** City / province the route belongs to (backend: cityName / provinceName). */
+  cityName?: string;
+  provinceName?: string;
   channelIds: string[];
   subcanalIds: string[];
   /** Manzanos (block ids) that compose the route's geographic coverage. */
   blockIds: string[];
+  /** Markets assigned to the route (traditional channel only). */
+  marketIds?: string[];
   /** Validity window (valid_from / valid_to in the backend). */
   startDate: string;
   endDate: string;
@@ -78,11 +100,12 @@ export interface RouteInput {
   name: string;
   color: string;
   status: RouteStatus;
+  /** Province the route belongs to (backend: provinceName / provinceId). */
+  provinceName?: string;
   channelIds: string[];
   subcanalIds: string[];
   blockIds: string[];
-  startDate: string;
-  endDate: string;
+  marketIds?: string[];
 }
 
 /**
@@ -114,6 +137,29 @@ export interface RouteMacro {
 export interface RouteMacroInput {
   name: string;
   routeIds: number[];
+}
+
+/**
+ * Mercado — a named geographic area made up of manzanos (blocks), similar to a
+ * Route but without channels/subcanales. Only administrators can draw them.
+ */
+export interface Market {
+  id: string;
+  name: string;
+  color: string;
+  provinceName?: string;
+  /** Manzanos (block ids) that compose the market's area. */
+  blockIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload used by create / update market forms. */
+export interface MarketInput {
+  name: string;
+  color: string;
+  provinceName?: string;
+  blockIds: string[];
 }
 
 export type SellerStatus = "ACTIVO" | "INACTIVO";

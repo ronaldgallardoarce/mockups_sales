@@ -14,6 +14,8 @@ interface BlockPolygonsProps {
   selectedIds?: string[];
   /** Ids to render with a warning (overlap) style. */
   warnIds?: string[];
+  /** Per-block override color (e.g. blocks that belong to an assigned market). */
+  blockColors?: Record<string, string>;
 }
 
 export function BlockPolygons({
@@ -23,13 +25,15 @@ export function BlockPolygons({
   selectedId,
   selectedIds,
   warnIds = [],
+  blockColors,
 }: BlockPolygonsProps) {
   return (
     <>
       {blocks.map((block) => {
         const selected = block.id === selectedId || !!selectedIds?.includes(block.id);
         const warn = warnIds.includes(block.id);
-        const paint = warn ? "#ef4444" : selected ? SELECTED : color;
+        const override = blockColors?.[block.id];
+        const paint = warn ? "#ef4444" : selected ? (override ?? SELECTED) : color;
         return (
           <Polygon
             key={block.id}

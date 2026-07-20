@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useMap } from "react-leaflet";
 import type { Client } from "@/types";
 
-export function FlyToClient({ client }: { client: Client | null }) {
+export function FlyToClient({ client }: { client?: Client | null }) {
   const map = useMap();
 
   useEffect(() => {

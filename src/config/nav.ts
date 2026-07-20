@@ -1,11 +1,14 @@
-// LayoutDashboard and Store stay imported-commented for the disabled nav items below.
-import { Layers, /* LayoutDashboard, */ Map, Route, /* Store, */ Users, type LucideIcon } from "lucide-react";
+// LayoutDashboard stays imported-commented for the disabled nav item below.
+import { Layers, /* LayoutDashboard, */ Map, Route, Store, Users, type LucideIcon } from "lucide-react";
+import type { Role } from "@/types";
 
 export interface NavItem {
   title: string;
   to: string;
   icon: LucideIcon;
   description: string;
+  /** Roles allowed to see this item. Omit = visible to every role. */
+  roles?: Role[];
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -33,12 +36,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Map,
     description: "Crea y edita manzanos sobre el mapa",
   },
-  // {
-  //   title: "Mercados/Clientes",
-  //   to: "/clients",
-  //   icon: Store,
-  //   description: "Clientes por canal y subcanal",
-  // },
+  {
+    title: "Gestión de Mercados",
+    to: "/markets",
+    icon: Store,
+    description: "Mercados con sus manzanos y clientes",
+    roles: ["administrador", "supervisor"],
+  },
   {
     title: "Vendedores",
     to: "/sellers",
@@ -46,3 +50,8 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Vendedores y asignación de rutas",
   },
 ];
+
+/** Nav items visible to the given role (items without `roles` are always shown). */
+export function navItemsForRole(role: Role): NavItem[] {
+  return NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
+}

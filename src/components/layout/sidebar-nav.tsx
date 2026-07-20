@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS } from "@/config/nav";
+import { navItemsForRole } from "@/config/nav";
+import { useRole } from "@/stores/session-store";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function SidebarNav({
@@ -10,9 +11,10 @@ export function SidebarNav({
   collapsed: boolean;
   onNavigate?: () => void;
 }) {
+  const role = useRole();
   return (
     <nav className="flex flex-col gap-1 px-2">
-      {NAV_ITEMS.map((item) => {
+      {navItemsForRole(role).map((item) => {
         const link = (
           <NavLink
             key={item.to}

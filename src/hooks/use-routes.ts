@@ -16,6 +16,8 @@ export interface UseRoutesPagedParams {
   limit: number;
   status: RouteStatus | "all";
   search: string;
+  /** Sale channel id filter (backend query param). "all" = no filter. */
+  channel: string;
 }
 
 /** Paginated + filtered routes for the list view. Keeps prior page while fetching. */

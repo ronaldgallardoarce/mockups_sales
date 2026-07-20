@@ -19,6 +19,8 @@ export interface ListRoutesParams {
   limit?: number;
   status?: RouteStatus | "all";
   search?: string;
+  /** Filter by sale channel (backend query param). "all" = no filter. */
+  channel?: string;
 }
 
 /**
@@ -46,11 +48,13 @@ export const routesService = {
     limit = 8,
     status = "all",
     search = "",
+    channel = "all",
   }: ListRoutesParams = {}): Promise<Paginated<Route>> => {
     const q = search.trim().toLowerCase();
     const filtered = ROUTES.filter(
       (r) =>
         (status === "all" || r.status === status) &&
+        (channel === "all" || r.channelIds.includes(channel)) &&
         (!q || r.name.toLowerCase().includes(q)),
     );
     const totalItems = filtered.length;
@@ -65,9 +69,14 @@ export const routesService = {
 
   create: (input: RouteInput): Promise<Route> => {
     const now = new Date().toISOString();
+    const oneYear = new Date();
+    oneYear.setFullYear(oneYear.getFullYear() + 1);
     const route: Route = {
       id: uid("rt"),
       ...input,
+      // Dates are no longer captured in the form; default the validity window.
+      startDate: now,
+      endDate: oneYear.toISOString(),
       clientCount: countClients(input.blockIds, input.subcanalIds),
       createdAt: now,
       updatedAt: now,

@@ -12,9 +12,12 @@ import { clientPinIcon, highlightPinIcon, clusterIcon } from "../lib/leaflet-set
 export function ClientMarkers({
   clients,
   highlightedClientId,
+  onExclude,
 }: {
   clients: Client[];
   highlightedClientId?: string;
+  /** When provided, each pin's popup shows an "Excluir de la ruta" action. */
+  onExclude?: (client: Client) => void;
 }) {
   const byChannel = useMemo(() => {
     const map = new Map<string, Client[]>();
@@ -32,7 +35,10 @@ export function ClientMarkers({
         const color = channelColor(chId);
         return (
           <MarkerClusterGroup
-            key={chId}
+            // Include membership in the key so re-including a client cleanly
+            // remounts the group (react-leaflet-cluster otherwise leaves stale
+            // cluster bubbles instead of the individual pin).
+            key={`${chId}:${list.map((c) => c.id).join(",")}`}
             chunkedLoading
             showCoverageOnHover={false}
             maxClusterRadius={45}
@@ -62,6 +68,15 @@ export function ClientMarkers({
                     <p className="mt-1 text-xs font-medium" style={{ color }}>
                       {getChannel(client.channelId)?.name} · {getSubcanal(client.subcanalId)?.name}
                     </p>
+                    {onExclude && (
+                      <button
+                        type="button"
+                        onClick={() => onExclude(client)}
+                        className="mt-1.5 flex w-full items-center justify-center gap-1 rounded border border-destructive/40 px-2 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+                      >
+                        Excluir de la ruta
+                      </button>
+                    )}
                   </div>
                 </Popup>
               </Marker>
