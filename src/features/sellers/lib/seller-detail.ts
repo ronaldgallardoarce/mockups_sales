@@ -1,4 +1,4 @@
-import type { LatLng, SellerDetail, SellerDetailRoute } from "@/types";
+import type { LatLng, SellerDetailRoute } from "@/types";
 
 /**
  * Parse a block's `coordinates` string into a polygon. The backend serializes

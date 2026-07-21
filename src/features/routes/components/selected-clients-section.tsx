@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Crosshair, Users } from "lucide-react";
+import { Ban, ChevronDown, ChevronRight, Crosshair, Undo2, Users } from "lucide-react";
 import type { Client } from "@/types";
 import { cn } from "@/lib/utils";
 import { getChannel, getSubcanal } from "@/data/channels";
@@ -13,6 +13,10 @@ interface SelectedClientsSectionProps {
   blockIds: string[];
   clients: Client[];
   onClientClick?: (client: Client) => void;
+  /** Client ids excluded from the routes. Enables the per-client exclude toggle. */
+  excludedClientIds?: Set<string>;
+  /** Toggle a client's excluded state. */
+  onToggleExclude?: (client: Client) => void;
 }
 
 const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
@@ -21,10 +25,11 @@ const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: "all", label: "Todos" },
 ];
 
-export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClientClick }: SelectedClientsSectionProps) {
+export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClientClick, excludedClientIds, onToggleExclude }: SelectedClientsSectionProps) {
   const [mode, setMode] = useState<ViewMode>("channel");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const blocks = useBlocksStore((s) => s.blocks);
+  const isExcluded = (id: string) => excludedClientIds?.has(id) ?? false;
 
   const filtered = useMemo(() => {
     let result = clients.filter((c) => subcanalIds.includes(c.subcanalId));
@@ -69,6 +74,28 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
     });
   };
 
+  const excludeButton = (c: Client) =>
+    onToggleExclude ? (
+      <button
+        type="button"
+        onClick={() => onToggleExclude(c)}
+        className={cn(
+          "shrink-0 rounded p-0.5 transition-colors",
+          isExcluded(c.id)
+            ? "text-primary hover:bg-primary/10"
+            : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
+        )}
+        aria-label={isExcluded(c.id) ? `Incluir ${c.name}` : `Excluir ${c.name}`}
+        title={isExcluded(c.id) ? "Volver a incluir" : "Excluir de la ruta"}
+      >
+        {isExcluded(c.id) ? <Undo2 className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+      </button>
+    ) : null;
+
+  const excludedCount = onToggleExclude
+    ? filtered.filter((c) => isExcluded(c.id)).length
+    : 0;
+
   if (subcanalIds.length === 0) return null;
 
   return (
@@ -80,6 +107,11 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
           <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
             {filtered.length}
           </span>
+          {excludedCount > 0 && (
+            <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">
+              {excludedCount} excluidos
+            </span>
+          )}
         </h3>
         <div className="flex overflow-hidden rounded-md border text-xs">
           {VIEW_OPTIONS.map((opt) => (
@@ -112,10 +144,12 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
             {filtered.map((c) => (
               <li key={c.id} className="flex items-center gap-2 rounded px-2 py-1 text-xs">
                 <span
-                  className="h-2 w-2 shrink-0 rounded-full"
+                  className={cn("h-2 w-2 shrink-0 rounded-full", isExcluded(c.id) && "opacity-40")}
                   style={{ backgroundColor: getChannel(c.channelId)?.color }}
                 />
-                <span className="flex-1 truncate">{c.name}</span>
+                <span className={cn("flex-1 truncate", isExcluded(c.id) && "text-muted-foreground line-through")}>
+                  {c.name}
+                </span>
                 <span className="shrink-0 text-muted-foreground">{c.code}</span>
                 {onClientClick && (
                   <button
@@ -127,6 +161,7 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
                     <Crosshair className="h-3.5 w-3.5" />
                   </button>
                 )}
+                {excludeButton(c)}
               </li>
             ))}
           </ul>
@@ -158,7 +193,9 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
                   <ul className="ml-5 space-y-0.5 border-l pl-2">
                     {g.items.map((c) => (
                       <li key={c.id} className="flex items-center gap-2 rounded px-2 py-1 text-xs">
-                        <span className="flex-1 truncate">{c.name}</span>
+                        <span className={cn("flex-1 truncate", isExcluded(c.id) && "text-muted-foreground line-through")}>
+                          {c.name}
+                        </span>
                         <span className="shrink-0 text-muted-foreground">{c.code}</span>
                         {onClientClick && (
                           <button
@@ -170,6 +207,7 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
                             <Crosshair className="h-3.5 w-3.5" />
                           </button>
                         )}
+                        {excludeButton(c)}
                       </li>
                     ))}
                   </ul>

@@ -2,6 +2,7 @@ import { Mail, Phone } from "lucide-react";
 import type { Seller } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SellerStatusBadge } from "./seller-status-badge";
 import { SellerActions } from "./seller-actions";
 
@@ -9,6 +10,15 @@ interface SellersTableProps {
   sellers: Seller[];
   loading?: boolean;
   onView: (seller: Seller) => void;
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
 }
 
 export function SellersTable({ sellers, loading, onView }: SellersTableProps) {
@@ -30,7 +40,12 @@ export function SellersTable({ sellers, loading, onView }: SellersTableProps) {
             ? Array.from({ length: 8 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell>
+                    <span className="flex items-center gap-2.5">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                      <Skeleton className="h-4 w-40" />
+                    </span>
+                  </TableCell>
                   <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-44" /></TableCell>
                   <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
@@ -46,7 +61,14 @@ export function SellersTable({ sellers, loading, onView }: SellersTableProps) {
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {seller.code}
                   </TableCell>
-                  <TableCell className="font-medium">{seller.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <span className="flex items-center gap-2.5">
+                      <Avatar className="h-8 w-8 shrink-0">
+                        <AvatarFallback className="text-xs">{initials(seller.name)}</AvatarFallback>
+                      </Avatar>
+                      {seller.name}
+                    </span>
+                  </TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Mail className="h-3 w-3 shrink-0" /> {seller.email}

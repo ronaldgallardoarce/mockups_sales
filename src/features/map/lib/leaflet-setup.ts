@@ -14,6 +14,17 @@ export function clientPinIcon(color: string) {
   });
 }
 
+/** Excluded client pin — same teardrop shape as an active pin but red with an X. */
+export function excludedPinIcon() {
+  return L.divIcon({
+    className: "",
+    html: `<span class="client-pin-x"><span class="client-pin-x-mark">✕</span></span>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 18],
+    popupAnchor: [0, -18],
+  });
+}
+
 /** Highlighted (focused) client pin — larger with a pulsing ring. */
 export function highlightPinIcon(color: string) {
   return L.divIcon({

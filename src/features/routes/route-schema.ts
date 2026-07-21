@@ -4,19 +4,16 @@ export const routeSchema = z.object({
   name: z
     .string()
     .min(3, "El nombre debe tener al menos 3 caracteres")
-    .max(60, "Máximo 60 caracteres"),
+    .max(20, "Máximo 20 caracteres"),
   color: z
     .string()
     .regex(/^#([0-9a-fA-F]{6})$/, "Color inválido"),
   status: z.enum(["active", "inactive"]),
+  provinceName: z.string().min(1, "Selecciona una provincia"),
   channelIds: z.array(z.string()).min(1, "Selecciona al menos un canal de venta"),
   subcanalIds: z.array(z.string()).min(1, "Selecciona al menos un subcanal"),
   blockIds: z.array(z.string()).min(1, "Selecciona al menos un manzano en el mapa"),
-  startDate: z.string().min(1, "La fecha de inicio es obligatoria"),
-  endDate: z.string().min(1, "La fecha de fin es obligatoria"),
-}).refine((v) => !v.startDate || !v.endDate || v.endDate >= v.startDate, {
-  message: "La fecha de fin debe ser igual o posterior a la de inicio",
-  path: ["endDate"],
+  marketIds: z.array(z.string()).default([]),
 });
 
 export type RouteFormValues = z.infer<typeof routeSchema>;

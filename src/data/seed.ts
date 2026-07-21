@@ -1,4 +1,5 @@
-import type { Block, Client, DayCode, MacroRouteRef, Polygon, Route, RouteMacro, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
+import type { Block, Client, DayCode, MacroRouteRef, Market, Polygon, Route, RouteMacro, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
+import { PROVINCES } from "./locations";
 import { numId, seededRandom } from "@/lib/utils";
 import { pointInPolygon } from "@/lib/geo";
 import { CHANNELS, SUBCANALES, getSubcanalesByChannel } from "./channels";
@@ -83,6 +84,8 @@ function buildClients(): Client[] {
       channelId,
       lat,
       lng,
+      ticketPromedio: Math.round(between(800, 6000)),
+      dropSize: Math.round(between(60, 700)),
     });
   };
 
@@ -134,6 +137,16 @@ function countClientsInBlocks(blockIds: string[], subcanalIds: string[]): number
 
 const ROUTE_PREFIX = ["ZONA", "RUTA", "SECTOR"];
 
+// City / province pairs (Santa Cruz department) to populate route location.
+const CITIES: { city: string; province: string }[] = [
+  { city: "SANTA CRUZ", province: "ANDRES IBAÑEZ" },
+  { city: "MONTERO", province: "OBISPO SANTISTEVAN" },
+  { city: "WARNES", province: "WARNES" },
+  { city: "LA GUARDIA", province: "ANDRES IBAÑEZ" },
+  { city: "COTOCA", province: "ANDRES IBAÑEZ" },
+  { city: "PORTACHUELO", province: "SARA" },
+];
+
 function buildRoutes(): Route[] {
   const routes: Route[] = [];
   // Enough routes so the paginated list spans several pages.
@@ -159,6 +172,7 @@ function buildRoutes(): Route[] {
       if (!blockIds.includes(b.id)) blockIds.push(b.id);
     }
     const zone = ZONES[i % ZONES.length];
+    const location = pick(CITIES);
     const created = new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27)));
     const startDate = new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27)));
     const endDate = new Date(startDate);
@@ -168,6 +182,8 @@ function buildRoutes(): Route[] {
       name: `${pick(ROUTE_PREFIX)} ${i + 1} ${zone.toUpperCase()} · ${channel.name}`,
       color: channel.color,
       status: rand() < 0.72 ? "active" : "inactive",
+      cityName: location.city,
+      provinceName: location.province,
       channelIds,
       subcanalIds,
       blockIds,
@@ -182,6 +198,36 @@ function buildRoutes(): Route[] {
 }
 
 export const SEED_ROUTES: Route[] = buildRoutes();
+
+// ---- Mercados: geographic areas made of manzanos (no channels) -------------
+const MARKET_NAMES = [
+  "Mercado Central", "Mercado Los Pozos", "Mercado La Ramada", "Mercado Abasto",
+  "Mercado Mutualista", "Mercado Siete Calles", "Mercado Florida", "Mercado Nuevo",
+];
+const MARKET_COLORS = ["#264bc5", "#0ea5e9", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6", "#f97316"];
+
+function buildMarkets(): Market[] {
+  return MARKET_NAMES.map((name, i) => {
+    const blockIds: string[] = [];
+    const count = 2 + Math.floor(rand() * 5); // 2..6 manzanos
+    for (let k = 0; k < count; k++) {
+      const b = pick(SEED_BLOCKS);
+      if (!blockIds.includes(b.id)) blockIds.push(b.id);
+    }
+    const created = new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27)));
+    return {
+      id: `mkt_${String(i + 1).padStart(3, "0")}`,
+      name,
+      color: MARKET_COLORS[i % MARKET_COLORS.length],
+      provinceName: pick(PROVINCES).name,
+      blockIds,
+      createdAt: created.toISOString(),
+      updatedAt: created.toISOString(),
+    };
+  });
+}
+
+export const SEED_MARKETS: Market[] = buildMarkets();
 
 // ---- Macrorutas ------------------------------------------------------------
 const MACRO_ZONES = [

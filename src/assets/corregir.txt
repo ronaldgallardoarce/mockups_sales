@@ -1,0 +1,51 @@
+- el atributo que obtiene coordenadas, que se llame polygon geojson
+- a nivel de respuestas detallar el código de respuesta, también un objeto estructurado de respuesta.
+- las respuestas directamente el objeto de respuesta json, pero para las entradas si detallada con tabla.
+- en las cabeceras, poner los bearer o lo que se necesite
+- objeto de respuesta, con estándar dentro de un data
+-en la lista de ruta, agregar un filtro por canal, agregar las fechas de valid_from y valid_to, y distinguir con algo a los que están por vencer o alguna forma visual por algún otro parámetro,
+- corregir las respuestas con camel case
+- en la respuesta de ver ruta, también agregar la fecha, canal de venta.
+- desde el backend calcular totales, por ejemplo si hay cantidad de clientes, calcula el backend.
+- en el formulario de editar/ crear rutas agregar fecha de fin.
+- los servicios, endpoints, integraciones, con nombres claros.
+- cambiar los code por id.
+- no olvidarse de colocar el adress y phone en editar ruta cuando le doy click en un pin de cliente
+- en las fechas si es tiemstamp poner en los ejemplos la hora, y mismos nombres en bd y respuestas.
+- en los formularios de crear/editar ruta agregar el campo de valid_to
+- en la lista del 
+- quitar el user de la tabla employee en la bd
+en la tabla owner
+- en owner poner el atributo documente_number
+-un campo solo poner number creo que house_number
+-----
+- en la lista de vendedores colocar: el avatar, el id, en obtener vendedor también
+- en el método de obtener el empleado separar, uno para solo información del cliente, y otro método para obtener las rutas asignadas,
+- en lista de rutas agregar también un id por que puede usar en otras vistas, y ese filtro funciona.
+- en asignar frecuencia, mantener quincenal que son 15 días y puede empezar desde cualquier dia (revisar en sgv)
+- corregir en asignar ruta el nombre se servicio, o los endpoints, hay algunos que están con post y mandan id cosa que es incorrecto.
+- en crear ruta indicar cuando se crea la frecuencia, si se crea automáticamente indicar.
+- en todos los 
+- en macrorutas poner los params de búsqueda, distributorid, los
+- en macro rutas falta el campo distributorid para que se asocie a esa tabla
+
+
+
+/// correcciones prioritarias
+1. Crear la columna province_id en la tabla route y que al crear la ruta se le puedan asignar a que provincia pertenece (hacer un select).
+2. Crear la tabla provinces
+3. Crear la tabla markets (id, city_id, province_id, geoJson) y las tablas o su relación con los manzanos
+4. Si el vendedor es de tradicional en la parte izquierda del menu habilitarle un boton que diga ‘Gestion de Mercados’, y que vea por defecto todos los mercados creados con sus manzanos y clientes correspondientes, solo el administrador podrá dibujar estos mercados.(hacer la funcionalidad para el administrador)
+5. Que en la pantalla de creacion de rutas se pueda tener un boton que diga Asignar Mercado y al presiona este aparezca un select y ahi se seleccione el o los mercados que seran visitados en esta ruta, al seleccionar el mercado deben mostrarse todos los manzanos y clientes de este y poder ser agregados. (Esto solo para vendedores de tradicional).
+6. Cada que se cree una ruta el nombre debe tener esta nomenclatura ’SC-TR-MO-ID-NOMBRERUTA’ donde: SC=abreviatura ciudad, TR-MOD=abreviaturas canal a los que pertenece esa ruta, ID=id de la ruta creada, NOMBRERUTA: un nombre que le ponga el vendedor no mas de 20 caracteres
+7. En el menu del supervisor crearon boton de ‘VER TODAS MIS RUTAS’  y al entrar aqui que sea un mapa donde se puedan ver los polígonos de las rutas pero dentro de estos este detalle:
+7.1. El ticket promedio de cada cliente (lo que el cliente te compra cada mes)
+7.2. DropSize (la venta que te genera el cliente en un dia única, es decir cuando va el vendedor)
+7.3. Cuantos vendedores estan atendiendo estas rutas, y también al ver el detalle del cliente ver cuantos vendedores lo atienden, ahi podemos poner su canal también.
+8. Estos 2 puntos solo de pedidos ya facturados.
+9. Esta información también debe estar al crear ruta mientras se van seleccionando manzanos, hacer la pantalla no muy pesada, mi consejo es utilizar microservicios separados para reenderizar esta información. La clave de que este información le diga mientras crea sus rutas cuanto podría vender de acuerdo a todo el análisis del ticket promedio y dropSize.
+10. Los campos visit_to, visit_from  no deben estar a nivel de creacion de ruta sino a nivel de asignación de ruta al vendedor, cambiar esos campos a la tabla correspondiente.
+11. La imagen Avatar del vendedor o empleado conseguirla desde Teams, es decir como el ligue sera por AZURE esta deberia traer la imagen de Teams.
+12. Validación al asignar ruta de que un vendedor no pueda tener los mismos manzanos y clientes asignados doblemente, esta validación hacerlos por manzano, canal, cliente y frecuencia.
+13. En la vista de creación de rutas podamos visualizar el nro de rutas, ver todas las rutas creadas, cuantos vendedores y clientes hay por rutas existentes,
+14.  Agregar mapa con todas las rutas de una ciudad, en esa vista poder asignar vendedores automáticamente, un solo vendedor no puede tener 2 rutas asignadas que se solapen si son del mismo canal y la misma frecuencia

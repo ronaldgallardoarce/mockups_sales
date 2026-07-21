@@ -3,9 +3,12 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
 import { RoutesListPage } from "@/features/routes/pages/routes-list-page";
 import { RouteFormPage } from "@/features/routes/pages/route-form-page";
+import { RoutesMapPage } from "@/features/routes/pages/routes-map-page";
 import { RouteMacrosListPage } from "@/features/route-macros/pages/route-macros-list-page";
 import { RouteMacroFormPage } from "@/features/route-macros/pages/route-macro-form-page";
 import { ManageMapPage } from "@/features/map/pages/manage-map-page";
+import { MarketsListPage } from "@/features/markets/pages/markets-list-page";
+import { MarketFormPage } from "@/features/markets/pages/market-form-page";
 import { ClientsPage } from "@/features/clients/pages/clients-page";
 import { SellersPage } from "@/features/sellers/pages/sellers-page";
 import { SellerDetailPage } from "@/features/sellers/pages/seller-detail-page";
@@ -17,12 +20,16 @@ export function App() {
       <Route element={<AppLayout />}>
         <Route index element={<DashboardPage />} />
         <Route path="routes" element={<RoutesListPage />} />
+        <Route path="routes/map" element={<RoutesMapPage />} />
         <Route path="routes/new" element={<RouteFormPage />} />
         <Route path="routes/:id/edit" element={<RouteFormPage />} />
         <Route path="route-macros" element={<RouteMacrosListPage />} />
         <Route path="route-macros/new" element={<RouteMacroFormPage />} />
         <Route path="route-macros/:id/edit" element={<RouteMacroFormPage />} />
         <Route path="map" element={<ManageMapPage />} />
+        <Route path="markets" element={<MarketsListPage />} />
+        <Route path="markets/new" element={<MarketFormPage />} />
+        <Route path="markets/:id/edit" element={<MarketFormPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="sellers" element={<SellersPage />} />
         <Route path="sellers/:code" element={<SellerDetailPage />} />

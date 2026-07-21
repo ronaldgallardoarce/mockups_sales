@@ -11,15 +11,17 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { ColorDot } from "@/components/common/channel-badge";
-import { NAV_ITEMS } from "@/config/nav";
+import { navItemsForRole } from "@/config/nav";
 import { useUIStore } from "@/stores/ui-store";
 import { useThemeStore } from "@/stores/theme-store";
+import { useRole } from "@/stores/session-store";
 import { useRoutes } from "@/hooks/use-routes";
 
 export function CommandPalette() {
   const { commandOpen, setCommandOpen } = useUIStore();
   const { toggleTheme, theme } = useThemeStore();
   const navigate = useNavigate();
+  const role = useRole();
   const { data: routes = [] } = useRoutes();
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function CommandPalette() {
         <CommandEmpty>Sin resultados.</CommandEmpty>
 
         <CommandGroup heading="Navegación">
-          {NAV_ITEMS.map((item) => (
+          {navItemsForRole(role).map((item) => (
             <CommandItem
               key={item.to}
               value={`nav ${item.title}`}

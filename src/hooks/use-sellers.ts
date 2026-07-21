@@ -11,6 +11,14 @@ export interface UseSellersPagedParams {
   search: string;
 }
 
+/** All sellers (for cross-cutting views like the routes metrics map). */
+export function useAllSellers() {
+  return useQuery({
+    queryKey: queryKeys.sellers,
+    queryFn: sellersService.list,
+  });
+}
+
 /** Paginated + filtered sellers for the list view. Keeps prior page while fetching. */
 export function useSellersPaged(params: UseSellersPagedParams) {
   return useQuery({

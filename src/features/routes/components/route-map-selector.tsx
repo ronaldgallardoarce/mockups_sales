@@ -23,6 +23,8 @@ interface RouteMapSelectorProps {
   subcanalIds: string[];
   /** Client to fly to and highlight on the map. */
   focusClient?: Client | null;
+  /** Per-block override colors (e.g. manzanos from an assigned market). */
+  blockColors?: Record<string, string>;
 }
 
 /**
@@ -31,7 +33,7 @@ interface RouteMapSelectorProps {
  * sits outside every polygon, the user can draw a new one here (it's saved and
  * can then be optionally added to the route). Zoom stays fixed while selecting.
  */
-export function RouteMapSelector({ value, onToggle, subcanalIds, focusClient }: RouteMapSelectorProps) {
+export function RouteMapSelector({ value, onToggle, subcanalIds, focusClient, blockColors }: RouteMapSelectorProps) {
   const blocks = useBlocksStore((s) => s.blocks);
   const addBlock = useBlocksStore((s) => s.addBlock);
   const { data: clients = [], isFetching } = useClientsBySubcanales(subcanalIds);
@@ -77,7 +79,7 @@ export function RouteMapSelector({ value, onToggle, subcanalIds, focusClient }: 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl border bg-muted">
       <BaseMap layerControl>
-        <BlockPolygons blocks={blocks} selectedIds={value} onSelect={(b) => onToggle(b.id)} />
+        <BlockPolygons blocks={blocks} selectedIds={value} onSelect={(b) => onToggle(b.id)} blockColors={blockColors} />
         {!noChannels && <ClientMarkers clients={clients} highlightedClientId={focusClient?.id} />}
         <FitBounds points={fitPoints} />
         <FlyToClient client={focusClient} />
