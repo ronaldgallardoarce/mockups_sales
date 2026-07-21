@@ -44,6 +44,22 @@ export function useSellerDetail(code: number | undefined) {
   });
 }
 
+export function useSetSellerStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, status }: { code: number; status: SellerStatus }) =>
+      sellersService.setStatus(code, status),
+    onSuccess: (seller: Seller) => {
+      qc.invalidateQueries({ queryKey: queryKeys.sellers });
+      qc.invalidateQueries({ queryKey: queryKeys.seller(seller.code) });
+      toast.success(seller.status === "ACTIVO" ? "Vendedor activado" : "Vendedor desactivado", {
+        description: seller.name,
+      });
+    },
+    onError: (e: Error) => toast.error("No se pudo cambiar el estado", { description: e.message }),
+  });
+}
+
 export function useUpdateSellerRoutes() {
   const qc = useQueryClient();
   return useMutation({

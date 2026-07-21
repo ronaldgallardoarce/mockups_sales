@@ -102,6 +102,14 @@ export const routesService = {
     return delay(updated, 500);
   },
 
+  setStatus: (id: string, status: RouteStatus): Promise<Route> => {
+    const now = new Date().toISOString();
+    let updated: Route | undefined;
+    ROUTES = ROUTES.map((r) => (r.id === id ? (updated = { ...r, status, updatedAt: now }) : r));
+    if (!updated) return Promise.reject(new Error("Ruta no encontrada"));
+    return delay(updated, 300);
+  },
+
   remove: (id: string): Promise<{ id: string }> => {
     ROUTES = ROUTES.filter((r) => r.id !== id);
     return delay({ id }, 400);

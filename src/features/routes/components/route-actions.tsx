@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Eye, MoreHorizontal, Pencil } from "lucide-react";
 import type { Route } from "@/types";
 import { Button } from "@/components/ui/button";
+import { useSetRouteStatus } from "@/hooks/use-routes";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,11 +14,13 @@ import {
 interface RouteActionsProps {
   route: Route;
   onView: (route: Route) => void;
-  onDelete: (route: Route) => void;
 }
 
-export function RouteActions({ route, onView, onDelete }: RouteActionsProps) {
+export function RouteActions({ route, onView }: RouteActionsProps) {
   const navigate = useNavigate();
+  const setStatus = useSetRouteStatus();
+  const active = route.status === "active";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -34,10 +37,10 @@ export function RouteActions({ route, onView, onDelete }: RouteActionsProps) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="text-destructive focus:text-destructive"
-          onClick={() => onDelete(route)}
+          onClick={() => setStatus.mutate({ id: route.id, status: active ? "inactive" : "active" })}
         >
-          <Trash2 /> Deshabilitar
+          <ArrowLeftRight />
+          {active ? "Desactivar" : "Activar"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

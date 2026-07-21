@@ -1,51 +1,41 @@
 import { useMemo } from "react";
 import { Polygon, Tooltip as LeafletTooltip } from "react-leaflet";
 import { Store } from "lucide-react";
-import type { LatLng, Market } from "@/types";
+import type { LatLng } from "@/types";
 import { BaseMap } from "@/features/map/components/base-map";
 import { ClientMarkers } from "@/features/map/components/client-markers";
 import { FitBounds } from "@/features/map/components/fit-bounds";
-import { useBlocksStore } from "@/stores/blocks-store";
 import { useClients } from "@/hooks/use-clients";
 import { pointInPolygon } from "@/lib/geo";
+import { bs, type MarketMetric } from "../lib/market-metrics";
 
 interface MarketsOverviewMapProps {
-  markets: Market[];
+  metrics: MarketMetric[];
   /** When set, only this market is emphasized (others dimmed). */
   highlightedId?: string | null;
 }
 
 /** Read-only overview: every market's manzanos in its own color, plus their clients. */
-export function MarketsOverviewMap({ markets, highlightedId }: MarketsOverviewMapProps) {
-  const allBlocks = useBlocksStore((s) => s.blocks);
+export function MarketsOverviewMap({ metrics, highlightedId }: MarketsOverviewMapProps) {
   const { data: clients = [] } = useClients();
 
-  const marketBlocks = useMemo(
-    () =>
-      markets.map((market) => ({
-        market,
-        blocks: allBlocks.filter((b) => market.blockIds.includes(b.id)),
-      })),
-    [markets, allBlocks],
-  );
-
   const clientsInMarkets = useMemo(() => {
-    const polys = marketBlocks.flatMap((mb) => mb.blocks);
+    const polys = metrics.flatMap((m) => m.blocks);
     return clients.filter((c) => polys.some((b) => pointInPolygon([c.lat, c.lng], b.polygon)));
-  }, [clients, marketBlocks]);
+  }, [clients, metrics]);
 
   const fitPoints = useMemo<LatLng[]>(() => {
     const pts: LatLng[] = [];
-    marketBlocks.forEach(({ blocks }) => blocks.forEach((b) => b.polygon.forEach((p) => pts.push(p))));
+    metrics.forEach(({ blocks }) => blocks.forEach((b) => b.polygon.forEach((p) => pts.push(p))));
     return pts;
-  }, [marketBlocks]);
+  }, [metrics]);
 
-  const hasAreas = marketBlocks.some((mb) => mb.blocks.length > 0);
+  const hasAreas = metrics.some((m) => m.blocks.length > 0);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl border bg-muted">
       <BaseMap layerControl>
-        {marketBlocks.map(({ market, blocks }) =>
+        {metrics.map(({ market, blocks, clientCount, avgTicket, totalDrop }) =>
           blocks.map((block) => {
             const dim = highlightedId != null && highlightedId !== market.id;
             return (
@@ -60,7 +50,14 @@ export function MarketsOverviewMap({ markets, highlightedId }: MarketsOverviewMa
                   opacity: dim ? 0.4 : 1,
                 }}
               >
-                <LeafletTooltip sticky>{market.name}</LeafletTooltip>
+                <LeafletTooltip sticky>
+                  <div className="space-y-0.5">
+                    <div className="font-semibold" style={{ color: market.color }}>{market.name}</div>
+                    <div>{clientCount} clientes · {market.blockIds.length} manzanos</div>
+                    <div>Ticket prom. {bs(avgTicket)}/mes</div>
+                    <div>DropSize total {bs(totalDrop)}</div>
+                  </div>
+                </LeafletTooltip>
               </Polygon>
             );
           }),

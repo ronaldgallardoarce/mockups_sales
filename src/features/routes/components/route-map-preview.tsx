@@ -8,6 +8,7 @@ import { FitBounds } from "@/features/map/components/fit-bounds";
 import { useBlocksStore } from "@/stores/blocks-store";
 import { useClientsBySubcanales } from "@/hooks/use-clients";
 import { pointInPolygon } from "@/lib/geo";
+import { bs } from "../lib/route-metrics";
 
 interface RouteMapPreviewProps {
   /** Manzanos that compose the route. */
@@ -39,10 +40,41 @@ export function RouteMapPreview({ blockIds, subcanalIds, color }: RouteMapPrevie
     return pts;
   }, [blocks, clientsInSelected]);
 
+  // Per-manzano metrics (route clients inside each) for hover tooltips.
+  const metricsByBlock = useMemo(() => {
+    const map = new Map<string, { count: number; ticketSum: number; drop: number }>();
+    for (const c of clientsInSelected) {
+      const b = blocks.find((b) => pointInPolygon([c.lat, c.lng], b.polygon));
+      if (!b) continue;
+      const e = map.get(b.id) ?? { count: 0, ticketSum: 0, drop: 0 };
+      e.count += 1;
+      e.ticketSum += c.ticketPromedio;
+      e.drop += c.dropSize;
+      map.set(b.id, e);
+    }
+    return map;
+  }, [clientsInSelected, blocks]);
+
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl border bg-muted">
       <BaseMap layerControl>
-        <BlockPolygons blocks={blocks} color={color} />
+        <BlockPolygons
+          blocks={blocks}
+          color={color}
+          renderTooltip={(block) => {
+            const m = metricsByBlock.get(block.id);
+            const count = m?.count ?? 0;
+            const avg = count ? Math.round(m!.ticketSum / count) : 0;
+            return (
+              <div className="space-y-0.5">
+                <div className="font-semibold">Manzano</div>
+                <div>{count} {count === 1 ? "cliente" : "clientes"}</div>
+                <div>Ticket prom. {bs(avg)}/mes</div>
+                <div>DropSize total {bs(m?.drop ?? 0)}</div>
+              </div>
+            );
+          }}
+        />
         <ClientMarkers clients={clientsInSelected} />
         <FitBounds points={fitPoints} />
       </BaseMap>

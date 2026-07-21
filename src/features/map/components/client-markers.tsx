@@ -12,12 +12,17 @@ import { clientPinIcon, highlightPinIcon, clusterIcon } from "../lib/leaflet-set
 export function ClientMarkers({
   clients,
   highlightedClientId,
-  onExclude,
+  onManage,
+  manageLabel = "Gestionar cliente",
 }: {
   clients: Client[];
   highlightedClientId?: string;
-  /** When provided, each pin's popup shows an "Excluir de la ruta" action. */
-  onExclude?: (client: Client) => void;
+  /**
+   * When provided, each pin's popup shows an action that hands the client back
+   * to the parent (e.g. to open a management modal). The map stays domain-free.
+   */
+  onManage?: (client: Client) => void;
+  manageLabel?: string;
 }) {
   const byChannel = useMemo(() => {
     const map = new Map<string, Client[]>();
@@ -68,13 +73,13 @@ export function ClientMarkers({
                     <p className="mt-1 text-xs font-medium" style={{ color }}>
                       {getChannel(client.channelId)?.name} · {getSubcanal(client.subcanalId)?.name}
                     </p>
-                    {onExclude && (
+                    {onManage && (
                       <button
                         type="button"
-                        onClick={() => onExclude(client)}
-                        className="mt-1.5 flex w-full items-center justify-center gap-1 rounded border border-destructive/40 px-2 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+                        onClick={() => onManage(client)}
+                        className="mt-1.5 flex w-full items-center justify-center gap-1 rounded border border-primary/40 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
                       >
-                        Excluir de la ruta
+                        {manageLabel}
                       </button>
                     )}
                   </div>

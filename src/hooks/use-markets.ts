@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { MarketInput } from "@/types";
+import type { MarketInput, RouteStatus } from "@/types";
 import { marketsService } from "@/services/markets-service";
 import { queryKeys } from "@/lib/query-client";
 
@@ -41,6 +41,22 @@ export function useUpdateMarket() {
       toast.success("Mercado actualizado", { description: market.name });
     },
     onError: (e: Error) => toast.error("No se pudo actualizar", { description: e.message }),
+  });
+}
+
+export function useSetMarketStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: RouteStatus }) =>
+      marketsService.setStatus(id, status),
+    onSuccess: (market) => {
+      qc.invalidateQueries({ queryKey: queryKeys.markets });
+      qc.invalidateQueries({ queryKey: queryKeys.market(market.id) });
+      toast.success(market.status === "active" ? "Mercado activado" : "Mercado desactivado", {
+        description: market.name,
+      });
+    },
+    onError: (e: Error) => toast.error("No se pudo cambiar el estado", { description: e.message }),
   });
 }
 

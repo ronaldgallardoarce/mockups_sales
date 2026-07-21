@@ -106,8 +106,6 @@ export function AssignMarketDialog({ open, onOpenChange, assignedMarketIds, onCo
             filtered.map((market) => {
               const marketClients = clientsByMarket.get(market.id) ?? [];
               const isSelected = selected.has(market.id);
-              const previewClients = marketClients.slice(0, 4);
-              const restClients = marketClients.length - previewClients.length;
 
               return (
                 <div
@@ -136,9 +134,7 @@ export function AssignMarketDialog({ open, onOpenChange, assignedMarketIds, onCo
                         <span className="truncate text-sm font-medium">{market.name}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span>{market.provinceName ?? "—"}</span>
-                        <span className="text-muted-foreground/50">·</span>
-                        <span>{market.blockIds.length} manzanos</span>
+                        <span>{market.cityName ?? market.provinceName ?? "—"}</span>
                         <span className="text-muted-foreground/50">·</span>
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" /> {marketClients.length}
@@ -146,13 +142,6 @@ export function AssignMarketDialog({ open, onOpenChange, assignedMarketIds, onCo
                       </div>
                     </div>
                   </button>
-
-                  {isSelected && marketClients.length > 0 && (
-                    <div className="border-t px-3 py-1.5 text-[11px] text-muted-foreground">
-                      Clientes: {previewClients.map((c) => c.name).join(", ")}
-                      {restClients > 0 && ` +${restClients} más`}
-                    </div>
-                  )}
                 </div>
               );
             })

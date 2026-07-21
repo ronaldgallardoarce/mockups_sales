@@ -4,12 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, MapIcon, Save } from "lucide-react";
 import { marketSchema, type MarketFormValues } from "../market-schema";
-import { PROVINCES } from "@/data/locations";
+import { CITIES, DEPARTMENT_NAME, provinceForCity } from "@/data/locations";
 import { useCreateMarket, useMarket, useUpdateMarket } from "@/hooks/use-markets";
 import { useRole, canEditMarkets } from "@/stores/session-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Combobox } from "@/components/ui/combobox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,7 +23,7 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs font-medium text-destructive">{message}</p>;
 }
 
-const PROVINCE_OPTIONS = PROVINCES.map((p) => ({ value: p.name, label: p.name }));
+const CITY_OPTIONS = CITIES.map((c) => ({ value: c.name, label: c.name }));
 
 export function MarketFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -44,7 +45,7 @@ export function MarketFormPage() {
     formState: { errors, isSubmitting },
   } = useForm<MarketFormValues>({
     resolver: zodResolver(marketSchema),
-    defaultValues: { name: "", color: "#264bc5", provinceName: "", blockIds: [] },
+    defaultValues: { name: "", color: "#264bc5", status: "active", cityName: "", blockIds: [] },
   });
 
   useEffect(() => {
@@ -52,14 +53,16 @@ export function MarketFormPage() {
       reset({
         name: existing.name,
         color: existing.color,
-        provinceName: existing.provinceName ?? "",
+        status: existing.status,
+        cityName: existing.cityName ?? "",
         blockIds: existing.blockIds,
       });
     }
   }, [existing, reset]);
 
   const blockIds = watch("blockIds");
-  const provinceName = watch("provinceName");
+  const cityName = watch("cityName");
+  const status = watch("status");
 
   // Only administrators may create/edit markets.
   if (!canEditMarkets(role)) return <Navigate to="/markets" replace />;
@@ -72,8 +75,14 @@ export function MarketFormPage() {
   };
 
   const onSubmit = async (values: MarketFormValues) => {
-    if (isEdit && id) await updateMarket.mutateAsync({ id, input: values });
-    else await createMarket.mutateAsync(values);
+    // Province/department are derived from the selected city.
+    const input = {
+      ...values,
+      departmentName: DEPARTMENT_NAME,
+      provinceName: provinceForCity(values.cityName),
+    };
+    if (isEdit && id) await updateMarket.mutateAsync({ id, input });
+    else await createMarket.mutateAsync(input);
     navigate("/markets");
   };
 
@@ -81,10 +90,8 @@ export function MarketFormPage() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-9 w-64" />
-        <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-          <Skeleton className="h-[420px]" />
-          <Skeleton className="h-[520px]" />
-        </div>
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-[calc(100vh-18rem)] min-h-[440px] w-full" />
       </div>
     );
   }
@@ -108,57 +115,64 @@ export function MarketFormPage() {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-        <div className="space-y-4 overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
-          <Card>
-            <CardContent className="space-y-4 p-5">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre del mercado</Label>
-                <Input id="name" placeholder="Ej. Mercado Central" {...register("name")} />
-                <FieldError message={errors.name?.message} />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Color</Label>
-                  <Controller
-                    control={control}
-                    name="color"
-                    render={({ field }) => <ColorPicker value={field.value} onChange={field.onChange} />}
-                  />
-                  <FieldError message={errors.color?.message} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="provinceName">Provincia</Label>
-                  <Combobox
-                    id="provinceName"
-                    options={PROVINCE_OPTIONS}
-                    value={provinceName}
-                    onChange={(v) => setValue("provinceName", v, { shouldValidate: true, shouldDirty: true })}
-                    placeholder="Selecciona una provincia"
-                    searchPlaceholder="Buscar provincia…"
-                    invalid={!!errors.provinceName}
-                  />
-                  <FieldError message={errors.provinceName?.message} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-8rem)]">
-          <div className="mb-2 flex items-center justify-between gap-2 text-sm">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <MapIcon className="h-4 w-4" />
-              Selecciona los manzanos del mercado
-            </span>
-            <FieldError message={errors.blockIds?.message} />
+      {/* Compact form bar — the map gets the full width below. */}
+      <Card className="mb-4">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start">
+          <div className="flex-1 space-y-1.5">
+            <Label htmlFor="name">Nombre del mercado</Label>
+            <Input id="name" placeholder="Ej. Mercado Central" {...register("name")} />
+            <FieldError message={errors.name?.message} />
           </div>
-          <div className="h-[460px] lg:h-[calc(100%-2rem)]">
-            <MarketMapSelector value={blockIds} onToggle={toggleBlock} canDraw />
+          <div className="space-y-1.5 sm:w-60">
+            <Label htmlFor="cityName">Ciudad</Label>
+            <Combobox
+              id="cityName"
+              options={CITY_OPTIONS}
+              value={cityName}
+              onChange={(v) => setValue("cityName", v, { shouldValidate: true, shouldDirty: true })}
+              placeholder="Selecciona una ciudad"
+              searchPlaceholder="Buscar ciudad…"
+              invalid={!!errors.cityName}
+            />
+            <FieldError message={errors.cityName?.message} />
           </div>
-        </div>
+          <div className="space-y-1.5">
+            <Label>Color</Label>
+            <Controller
+              control={control}
+              name="color"
+              render={({ field }) => <ColorPicker value={field.value} onChange={field.onChange} />}
+            />
+            <FieldError message={errors.color?.message} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Estado</Label>
+            <div className="flex h-9 items-center gap-2 rounded-md border px-3">
+              <Switch
+                id="status"
+                checked={status === "active"}
+                onCheckedChange={(v) => setValue("status", v ? "active" : "inactive", { shouldDirty: true })}
+                disabled={!isEdit}
+              />
+              <Label htmlFor="status" className="cursor-pointer font-normal">
+                {status === "active" ? "Activo" : "Inactivo"}
+              </Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Map — full width, tall */}
+      <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+        <span className="flex items-center gap-2 text-muted-foreground">
+          <MapIcon className="h-4 w-4" />
+          Selecciona los manzanos del mercado
+        </span>
+        <FieldError message={errors.blockIds?.message} />
+      </div>
+      <div className="h-[calc(100vh-18rem)] min-h-[440px]">
+        <MarketMapSelector value={blockIds} onToggle={toggleBlock} canDraw />
       </div>
     </form>
   );

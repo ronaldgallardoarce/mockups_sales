@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeftRight, Eye, MapPinned, MoreHorizontal } from "lucide-react";
-import type { Seller } from "@/types";
+import { ArrowLeftRight, MoreHorizontal, Pencil } from "lucide-react";
+import type { Market } from "@/types";
 import { Button } from "@/components/ui/button";
-import { useSetSellerStatus } from "@/hooks/use-sellers";
+import { useSetMarketStatus } from "@/hooks/use-markets";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function SellerActions({ seller }: { seller: Seller }) {
+export function MarketActions({ market }: { market: Market }) {
   const navigate = useNavigate();
-  const setStatus = useSetSellerStatus();
-  const active = seller.status === "ACTIVO";
+  const setStatus = useSetMarketStatus();
+  const active = market.status === "active";
 
   return (
     <DropdownMenu>
@@ -23,16 +23,13 @@ export function SellerActions({ seller }: { seller: Seller }) {
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => navigate(`/sellers/${seller.code}`)}>
-          <Eye /> Ver detalle
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate(`/sellers/${seller.code}/assign`)}>
-          <MapPinned /> Asignar ruta
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuItem onClick={() => navigate(`/markets/${market.id}/edit`)}>
+          <Pencil /> Editar
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => setStatus.mutate({ code: seller.code, status: active ? "INACTIVO" : "ACTIVO" })}
+          onClick={() => setStatus.mutate({ id: market.id, status: active ? "inactive" : "active" })}
         >
           <ArrowLeftRight />
           {active ? "Desactivar" : "Activar"}

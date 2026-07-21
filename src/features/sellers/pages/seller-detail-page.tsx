@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, Grid3x3, Mail, MapPinned, Route as RouteIcon, User, Users } from "lucide-react";
+import { ArrowLeft, CalendarDays, Grid3x3, Mail, MapPinned, Route as RouteIcon, Store, User, Users } from "lucide-react";
 import type { SellerDetailRoute } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
@@ -73,51 +73,45 @@ export function SellerDetailPage() {
 
   return (
     <>
-      <PageHeader title={seller.name} description="Detalle del vendedor y sus rutas asignadas.">
-        <Button variant="outline" onClick={() => navigate("/sellers")}>
-          <ArrowLeft className="h-4 w-4" /> Volver
-        </Button>
-        <Button onClick={() => navigate(`/sellers/${code}/assign`)}>
-          <MapPinned className="h-4 w-4" /> Asignar rutas
-        </Button>
-      </PageHeader>
-
-      {/* Profile */}
-      <Card className="mb-4">
-        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-          <Avatar className="h-14 w-14">
+      {/* Seller identity lives in the header — no separate profile card. */}
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar className="h-12 w-12">
             <AvatarFallback className="text-base">{initials(seller.name)}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0 flex-1 space-y-1">
+          <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-semibold">{seller.name}</h2>
+              <h1 className="truncate text-xl font-semibold tracking-tight">{seller.name}</h1>
               <SellerStatusBadge status={seller.activeFlag ? "ACTIVO" : "INACTIVO"} />
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
                 <User className="h-3.5 w-3.5" /> {seller.user}
               </span>
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1">
                 <Mail className="h-3.5 w-3.5" /> {seller.email}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <RouteIcon className="h-3.5 w-3.5" /> {totals.routes} rutas
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Grid3x3 className="h-3.5 w-3.5" /> {totals.blocks} manzanos
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Users className="h-3.5 w-3.5" /> {totals.customers} clientes
               </span>
             </div>
           </div>
-          <div className="flex gap-4 text-center">
-            <div>
-              <p className="text-xl font-semibold tabular-nums">{totals.routes}</p>
-              <p className="text-xs text-muted-foreground">Rutas</p>
-            </div>
-            <div>
-              <p className="text-xl font-semibold tabular-nums">{totals.blocks}</p>
-              <p className="text-xs text-muted-foreground">Manzanos</p>
-            </div>
-            <div>
-              <p className="text-xl font-semibold tabular-nums">{totals.customers}</p>
-              <p className="text-xs text-muted-foreground">Clientes</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/sellers")}>
+            <ArrowLeft className="h-4 w-4" /> Volver
+          </Button>
+          <Button onClick={() => navigate(`/sellers/${code}/assign`)}>
+            <MapPinned className="h-4 w-4" /> Asignar rutas
+          </Button>
+        </div>
+      </div>
 
       {seller.assignRoutes.length === 0 ? (
         <EmptyState
@@ -161,6 +155,24 @@ export function SellerDetailPage() {
                     </span>
                     <span>Distribuidor #{route.distributorId}</span>
                   </div>
+
+                  {route.markets.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Store className="h-3.5 w-3.5" /> Mercados:
+                      </span>
+                      {route.markets.map((m) => (
+                        <span
+                          key={m.name}
+                          className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                          style={{ color: m.color, borderColor: `${m.color}55`, backgroundColor: `${m.color}14` }}
+                        >
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: m.color }} />
+                          {m.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {customerCount(route) > 0 && (
                     <>
