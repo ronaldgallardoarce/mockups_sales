@@ -5,7 +5,7 @@ import type {
   SellerRouteAssignment,
   SellerStatus,
 } from "@/types";
-import { SEED_SELLERS, SEED_ROUTES, SEED_BLOCKS, SEED_CLIENTS } from "@/data/seed";
+import { SEED_SELLERS, SEED_ROUTES, SEED_BLOCKS, SEED_CLIENTS, SEED_MARKETS } from "@/data/seed";
 import { getSubcanal } from "@/data/channels";
 import { pointInPolygon } from "@/lib/geo";
 import { delay, numId } from "@/lib/utils";
@@ -45,6 +45,11 @@ function buildSellerDetail(seller: Seller): SellerDetail {
         };
       });
 
+      const markets = SEED_MARKETS.filter((m) => route.marketIds?.includes(m.id)).map((m) => ({
+        name: m.name,
+        color: m.color,
+      }));
+
       return {
         id: numId(route.id),
         name: route.name,
@@ -53,6 +58,7 @@ function buildSellerDetail(seller: Seller): SellerDetail {
         distributorId: 9,
         valid_from: route.startDate,
         valid_to: route.endDate,
+        markets,
         blocks,
       };
     })
@@ -122,5 +128,12 @@ export const sellersService = {
     });
     if (!updated) return Promise.reject(new Error("Vendedor no encontrado"));
     return delay(updated, 500);
+  },
+
+  setStatus: (code: number, status: SellerStatus): Promise<Seller> => {
+    let updated: Seller | undefined;
+    SELLERS = SELLERS.map((s) => (s.code === code ? (updated = { ...s, status }) : s));
+    if (!updated) return Promise.reject(new Error("Vendedor no encontrado"));
+    return delay(updated, 300);
   },
 };

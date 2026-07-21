@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { Ban, MapPinOff, Undo2, Users } from "lucide-react";
-import type { Client } from "@/types";
+import { ArrowUpRight, MapPinOff, UserCheck, Users } from "lucide-react";
+import type { Client, Seller } from "@/types";
 import { cn } from "@/lib/utils";
 import { getChannel, getSubcanal } from "@/data/channels";
 import { useBlocksStore } from "@/stores/blocks-store";
@@ -14,8 +14,12 @@ interface CoverageClientsTableProps {
   blockIds: string[];
   excludedClientIds: Set<string>;
   manualClientIds: Set<string>;
-  onToggleExclude: (client: Client) => void;
-  onToggleManual: (client: Client) => void;
+  /** Sellers that can take over an excluded client (used to show who attends it). */
+  sellers: Seller[];
+  /** Excluded client id -> code of the seller that will attend it. */
+  reassignments: Record<string, number>;
+  /** Open the route clients manager focused on this client (exclusion happens there). */
+  onManageClient: (client: Client) => void;
 }
 
 interface Row {
@@ -30,10 +34,13 @@ export function CoverageClientsTable({
   blockIds,
   excludedClientIds,
   manualClientIds,
-  onToggleExclude,
-  onToggleManual,
+  sellers,
+  reassignments,
+  onManageClient,
 }: CoverageClientsTableProps) {
   const blocks = useBlocksStore((s) => s.blocks);
+  const replacementName = (clientId: string) =>
+    sellers.find((s) => s.code === reassignments[clientId])?.name;
 
   const rows = useMemo<Row[]>(() => {
     const selected = blocks.filter((b) => blockIds.includes(b.id));
@@ -91,9 +98,15 @@ export function CoverageClientsTable({
                 </TableCell>
                 <TableCell>
                   {excluded ? (
-                    <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-                      Excluido
-                    </span>
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                        Excluido de este vendedor
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+                        <UserCheck className="h-3 w-3 shrink-0" />
+                        Atiende: {replacementName(c.id) ?? "sin asignar"}
+                      </span>
+                    </div>
                   ) : !inside ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
                       <MapPinOff className="h-3 w-3" /> Fuera de ruta
@@ -105,25 +118,13 @@ export function CoverageClientsTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
+                  {/* Managing (excluding / reassigning) happens in the route modal. */}
                   <button
                     type="button"
-                    onClick={() => (inside ? onToggleExclude(c) : onToggleManual(c))}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors",
-                      assigned
-                        ? "border-destructive/40 text-destructive hover:bg-destructive/10"
-                        : "border-primary/40 text-primary hover:bg-primary/10",
-                    )}
+                    onClick={() => onManageClient(c)}
+                    className="inline-flex items-center gap-1 rounded-md border border-primary/40 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
                   >
-                    {assigned ? (
-                      <>
-                        <Ban className="h-3.5 w-3.5" /> {inside ? "Excluir" : "Quitar"}
-                      </>
-                    ) : (
-                      <>
-                        <Undo2 className="h-3.5 w-3.5" /> Incluir
-                      </>
-                    )}
+                    <ArrowUpRight className="h-3.5 w-3.5" /> Gestionar
                   </button>
                 </TableCell>
               </TableRow>

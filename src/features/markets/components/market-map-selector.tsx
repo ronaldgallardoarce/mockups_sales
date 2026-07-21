@@ -11,6 +11,7 @@ import { DrawPolygonControl, type DrawHandle } from "@/features/map/components/d
 import { useBlocksStore } from "@/stores/blocks-store";
 import { useClients } from "@/hooks/use-clients";
 import { pointInPolygon } from "@/lib/geo";
+import { bs } from "../lib/market-metrics";
 
 type DrawMode = "idle" | "drawing" | "draft";
 
@@ -41,6 +42,31 @@ export function MarketMapSelector({ value, onToggle, canDraw = false }: MarketMa
     [clients, selectedBlocks],
   );
 
+  // Running total of the selected manzanos — what the market would generate.
+  const marketMetrics = useMemo(() => {
+    if (clientsInMarket.length === 0) return { avgTicket: 0, totalDrop: 0 };
+    const avgTicket = Math.round(
+      clientsInMarket.reduce((a, c) => a + c.ticketPromedio, 0) / clientsInMarket.length,
+    );
+    const totalDrop = clientsInMarket.reduce((a, c) => a + c.dropSize, 0);
+    return { avgTicket, totalDrop };
+  }, [clientsInMarket]);
+
+  // Per-manzano metrics (all clients inside it) for hover tooltips.
+  const metricsByBlock = useMemo(() => {
+    const map = new Map<string, { count: number; ticketSum: number; drop: number }>();
+    for (const c of clients) {
+      const b = blocks.find((b) => pointInPolygon([c.lat, c.lng], b.polygon));
+      if (!b) continue;
+      const e = map.get(b.id) ?? { count: 0, ticketSum: 0, drop: 0 };
+      e.count += 1;
+      e.ticketSum += c.ticketPromedio;
+      e.drop += c.dropSize;
+      map.set(b.id, e);
+    }
+    return map;
+  }, [clients, blocks]);
+
   const fitPoints = useMemo<LatLng[]>(() => clients.map((c) => [c.lat, c.lng] as LatLng), [clients]);
 
   const handleSaveDraft = () => {
@@ -60,7 +86,24 @@ export function MarketMapSelector({ value, onToggle, canDraw = false }: MarketMa
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl border bg-muted">
       <BaseMap layerControl>
-        <BlockPolygons blocks={blocks} selectedIds={value} onSelect={(b) => onToggle(b.id)} />
+        <BlockPolygons
+          blocks={blocks}
+          selectedIds={value}
+          onSelect={(b) => onToggle(b.id)}
+          renderTooltip={(block) => {
+            const m = metricsByBlock.get(block.id);
+            const count = m?.count ?? 0;
+            const avg = count ? Math.round(m!.ticketSum / count) : 0;
+            return (
+              <div className="space-y-0.5">
+                <div className="font-semibold">Manzano</div>
+                <div>{count} {count === 1 ? "cliente" : "clientes"}</div>
+                <div>Ticket prom. {bs(avg)}/mes</div>
+                <div>DropSize total {bs(m?.drop ?? 0)}</div>
+              </div>
+            );
+          }}
+        />
         <ClientMarkers clients={clients} />
         <FitBounds points={fitPoints} />
         {canDraw && (
@@ -117,6 +160,18 @@ export function MarketMapSelector({ value, onToggle, canDraw = false }: MarketMa
           </span>
         )}
       </div>
+
+      {/* Market sales potential while selecting manzanos */}
+      {drawMode === "idle" && value.length > 0 && (
+        <div className="pointer-events-none absolute left-1/2 top-12 z-[400] flex -translate-x-1/2 gap-2 text-[11px]">
+          <span className="rounded-full border bg-background/95 px-2.5 py-1 shadow-sm backdrop-blur">
+            Ticket prom. <span className="font-semibold tabular-nums">{bs(marketMetrics.avgTicket)}/mes</span>
+          </span>
+          <span className="rounded-full border bg-background/95 px-2.5 py-1 shadow-sm backdrop-blur">
+            DropSize <span className="font-semibold tabular-nums">{bs(marketMetrics.totalDrop)}</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

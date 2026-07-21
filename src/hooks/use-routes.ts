@@ -63,6 +63,22 @@ export function useUpdateRoute() {
   });
 }
 
+export function useSetRouteStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: RouteStatus }) =>
+      routesService.setStatus(id, status),
+    onSuccess: (route) => {
+      qc.invalidateQueries({ queryKey: queryKeys.routes });
+      qc.invalidateQueries({ queryKey: queryKeys.route(route.id) });
+      toast.success(route.status === "active" ? "Ruta activada" : "Ruta desactivada", {
+        description: route.name,
+      });
+    },
+    onError: (e: Error) => toast.error("No se pudo cambiar el estado", { description: e.message }),
+  });
+}
+
 export function useDeleteRoute() {
   const qc = useQueryClient();
   return useMutation({

@@ -1,5 +1,5 @@
-import type { Block, Client, DayCode, MacroRouteRef, Market, Polygon, Route, RouteMacro, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
-import { PROVINCES } from "./locations";
+import type { Block, Client, DayCode, FrequencyType, MacroRouteRef, Market, Polygon, Route, RouteFrequency, RouteMacro, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
+import { CITIES, DEPARTMENT_NAME } from "./locations";
 import { numId, seededRandom } from "@/lib/utils";
 import { pointInPolygon } from "@/lib/geo";
 import { CHANNELS, SUBCANALES, getSubcanalesByChannel } from "./channels";
@@ -137,16 +137,6 @@ function countClientsInBlocks(blockIds: string[], subcanalIds: string[]): number
 
 const ROUTE_PREFIX = ["ZONA", "RUTA", "SECTOR"];
 
-// City / province pairs (Santa Cruz department) to populate route location.
-const CITIES: { city: string; province: string }[] = [
-  { city: "SANTA CRUZ", province: "ANDRES IBAÑEZ" },
-  { city: "MONTERO", province: "OBISPO SANTISTEVAN" },
-  { city: "WARNES", province: "WARNES" },
-  { city: "LA GUARDIA", province: "ANDRES IBAÑEZ" },
-  { city: "COTOCA", province: "ANDRES IBAÑEZ" },
-  { city: "PORTACHUELO", province: "SARA" },
-];
-
 function buildRoutes(): Route[] {
   const routes: Route[] = [];
   // Enough routes so the paginated list spans several pages.
@@ -179,11 +169,12 @@ function buildRoutes(): Route[] {
     endDate.setFullYear(endDate.getFullYear() + 1);
     routes.push({
       id: `rt_${String(i + 1).padStart(3, "0")}`,
-      name: `${pick(ROUTE_PREFIX)} ${i + 1} ${zone.toUpperCase()} · ${channel.name}`,
+      // Just the editable label — city, channel and id are separate code segments.
+      name: `${pick(ROUTE_PREFIX)} ${zone.toUpperCase()}`,
       color: channel.color,
       status: rand() < 0.72 ? "active" : "inactive",
-      cityName: location.city,
-      provinceName: location.province,
+      cityName: location.name,
+      provinceName: location.provinceName,
       channelIds,
       subcanalIds,
       blockIds,
@@ -215,11 +206,15 @@ function buildMarkets(): Market[] {
       if (!blockIds.includes(b.id)) blockIds.push(b.id);
     }
     const created = new Date(2025, Math.floor(rand() * 11), Math.floor(between(1, 27)));
+    const location = pick(CITIES);
     return {
       id: `mkt_${String(i + 1).padStart(3, "0")}`,
       name,
       color: MARKET_COLORS[i % MARKET_COLORS.length],
-      provinceName: pick(PROVINCES).name,
+      status: rand() < 0.8 ? "active" : "inactive",
+      departmentName: DEPARTMENT_NAME,
+      cityName: location.name,
+      provinceName: location.provinceName,
       blockIds,
       createdAt: created.toISOString(),
       updatedAt: created.toISOString(),
@@ -272,13 +267,10 @@ function buildRouteMacros(): RouteMacro[] {
 export const SEED_ROUTE_MACROS: RouteMacro[] = buildRouteMacros();
 
 // ---- Sellers (Vendedores) --------------------------------------------------
-function buildRandomFrequency(): { weeks: WeekPosition[]; days: DayCode[] } {
-  // Random weeks: 1-4 (biased toward all weeks)
-  const weekCount = rand() < 0.6 ? 4 : 1 + Math.floor(rand() * 4);
-  const allWeeks: WeekPosition[] = [1, 2, 3, 4];
-  const weeks = weekCount >= 4
-    ? allWeeks
-    : [...allWeeks].sort(() => rand() - 0.5).slice(0, weekCount).sort();
+function buildRandomFrequency(): RouteFrequency {
+  // Weekly by default; other cadences are set per assignment in the UI.
+  const type: FrequencyType = "SEMANAL";
+  const weeks: WeekPosition[] = []; // only MENSUAL uses weeks
 
   // Random days: biased toward weekdays
   const allDays: DayCode[] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
@@ -287,7 +279,8 @@ function buildRandomFrequency(): { weeks: WeekPosition[]; days: DayCode[] } {
   const dayCount = 1 + Math.floor(rand() * Math.min(pool.length, 5));
   const days = [...pool].sort(() => rand() - 0.5).slice(0, dayCount).sort();
 
-  return { weeks, days };
+  // Validity: from 2026-07-14 for one year (matches the seed epoch).
+  return { type, days, weeks, validFrom: "2026-07-14", validTo: "2027-07-14" };
 }
 
 function buildSellers(): Seller[] {
@@ -300,11 +293,17 @@ function buildSellers(): Seller[] {
     const routeAssignments: SellerRouteAssignment[] = [];
     if (rand() > 0.15) {
       const routeCount = 1 + Math.floor(rand() * 3); // 1..3
-      for (let k = 0; k < routeCount; k++) {
+      // Keep each seller's routes on disjoint manzanos so the seed never ships a
+      // conflict (shared manzano -> shared clients -> double assignment).
+      const usedBlocks = new Set<string>();
+      let attempts = 0;
+      while (routeAssignments.length < routeCount && attempts < 20) {
+        attempts++;
         const r = pick(SEED_ROUTES);
-        if (!routeAssignments.some((a) => a.routeId === r.id)) {
-          routeAssignments.push({ routeId: r.id, frequency: buildRandomFrequency() });
-        }
+        if (routeAssignments.some((a) => a.routeId === r.id)) continue;
+        if (r.blockIds.some((b) => usedBlocks.has(b))) continue;
+        routeAssignments.push({ routeId: r.id, frequency: buildRandomFrequency() });
+        for (const b of r.blockIds) usedBlocks.add(b);
       }
     }
     sellers.push({

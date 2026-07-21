@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Ban, ChevronDown, ChevronRight, Crosshair, Undo2, Users } from "lucide-react";
-import type { Client } from "@/types";
+import { ArrowUpRight, ChevronDown, ChevronRight, Crosshair, UserCheck, Users } from "lucide-react";
+import type { Client, Seller } from "@/types";
 import { cn } from "@/lib/utils";
 import { getChannel, getSubcanal } from "@/data/channels";
 import { useBlocksStore } from "@/stores/blocks-store";
 import { pointInPolygon } from "@/lib/geo";
+import { bs } from "../lib/route-metrics";
 
 type ViewMode = "channel" | "subcanal" | "all";
 
@@ -13,10 +14,14 @@ interface SelectedClientsSectionProps {
   blockIds: string[];
   clients: Client[];
   onClientClick?: (client: Client) => void;
-  /** Client ids excluded from the routes. Enables the per-client exclude toggle. */
+  /** Client ids excluded from the routes — shown struck through with who attends them. */
   excludedClientIds?: Set<string>;
-  /** Toggle a client's excluded state. */
-  onToggleExclude?: (client: Client) => void;
+  /** Sellers, to resolve the name of whoever attends an excluded client. */
+  sellers?: Seller[];
+  /** Excluded client id -> code of the seller that will attend it. */
+  reassignments?: Record<string, number>;
+  /** Open the route clients manager focused on this client (exclusion happens there). */
+  onManageClient?: (client: Client) => void;
 }
 
 const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
@@ -25,11 +30,14 @@ const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: "all", label: "Todos" },
 ];
 
-export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClientClick, excludedClientIds, onToggleExclude }: SelectedClientsSectionProps) {
+export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClientClick, excludedClientIds, sellers, reassignments, onManageClient }: SelectedClientsSectionProps) {
   const [mode, setMode] = useState<ViewMode>("channel");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const blocks = useBlocksStore((s) => s.blocks);
   const isExcluded = (id: string) => excludedClientIds?.has(id) ?? false;
+  const manageEnabled = !!onManageClient;
+  const replacementName = (c: Client) =>
+    sellers?.find((s) => s.code === reassignments?.[c.id])?.name;
 
   const filtered = useMemo(() => {
     let result = clients.filter((c) => subcanalIds.includes(c.subcanalId));
@@ -41,6 +49,16 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
     }
     return result;
   }, [clients, subcanalIds, blockIds, blocks]);
+
+  // Sales potential of the current coverage: average ticket, total drop size.
+  const metrics = useMemo(() => {
+    if (filtered.length === 0) return { avgTicket: 0, totalDrop: 0 };
+    const avgTicket = Math.round(
+      filtered.reduce((a, c) => a + c.ticketPromedio, 0) / filtered.length,
+    );
+    const totalDrop = filtered.reduce((a, c) => a + c.dropSize, 0);
+    return { avgTicket, totalDrop };
+  }, [filtered]);
 
   const groups = useMemo(() => {
     if (mode === "all") return null;
@@ -74,25 +92,34 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
     });
   };
 
-  const excludeButton = (c: Client) =>
-    onToggleExclude ? (
+  /** Read-only pill showing who attends an excluded client (changed in the modal). */
+  const attendInfo = (c: Client) =>
+    manageEnabled && isExcluded(c.id) ? (
+      <span
+        className="inline-flex max-w-[150px] shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+        title={`Atiende: ${replacementName(c) ?? "sin asignar"}`}
+      >
+        <UserCheck className="h-2.5 w-2.5 shrink-0" />
+        <span className="shrink-0">Atiende:</span>
+        <span className="truncate">{replacementName(c) ?? "sin asignar"}</span>
+      </span>
+    ) : null;
+
+  /** Open the route clients manager focused on this client. */
+  const clientAction = (c: Client) =>
+    manageEnabled ? (
       <button
         type="button"
-        onClick={() => onToggleExclude(c)}
-        className={cn(
-          "shrink-0 rounded p-0.5 transition-colors",
-          isExcluded(c.id)
-            ? "text-primary hover:bg-primary/10"
-            : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
-        )}
-        aria-label={isExcluded(c.id) ? `Incluir ${c.name}` : `Excluir ${c.name}`}
-        title={isExcluded(c.id) ? "Volver a incluir" : "Excluir de la ruta"}
+        onClick={() => onManageClient!(c)}
+        className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+        aria-label={`Gestionar ${c.name} en la ruta`}
+        title="Gestionar en la ruta"
       >
-        {isExcluded(c.id) ? <Undo2 className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+        <ArrowUpRight className="h-3.5 w-3.5" />
       </button>
     ) : null;
 
-  const excludedCount = onToggleExclude
+  const excludedCount = manageEnabled
     ? filtered.filter((c) => isExcluded(c.id)).length
     : 0;
 
@@ -132,6 +159,19 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
         </div>
       </div>
 
+      {filtered.length > 0 && (
+        <div className="flex items-center gap-6 rounded-lg border bg-muted/30 px-3 py-2">
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Ticket promedio</span>
+            <span className="text-sm font-semibold tabular-nums">{bs(metrics.avgTicket)}/mes</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">DropSize total</span>
+            <span className="text-sm font-semibold tabular-nums">{bs(metrics.totalDrop)}</span>
+          </div>
+        </div>
+      )}
+
       <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border p-2">
         {filtered.length === 0 ? (
           <p className="py-4 text-center text-xs text-muted-foreground">
@@ -150,6 +190,7 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
                 <span className={cn("flex-1 truncate", isExcluded(c.id) && "text-muted-foreground line-through")}>
                   {c.name}
                 </span>
+                {attendInfo(c)}
                 <span className="shrink-0 text-muted-foreground">{c.code}</span>
                 {onClientClick && (
                   <button
@@ -161,7 +202,7 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
                     <Crosshair className="h-3.5 w-3.5" />
                   </button>
                 )}
-                {excludeButton(c)}
+                {clientAction(c)}
               </li>
             ))}
           </ul>
@@ -196,6 +237,7 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
                         <span className={cn("flex-1 truncate", isExcluded(c.id) && "text-muted-foreground line-through")}>
                           {c.name}
                         </span>
+                        {attendInfo(c)}
                         <span className="shrink-0 text-muted-foreground">{c.code}</span>
                         {onClientClick && (
                           <button
@@ -207,7 +249,7 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
                             <Crosshair className="h-3.5 w-3.5" />
                           </button>
                         )}
-                        {excludeButton(c)}
+                        {clientAction(c)}
                       </li>
                     ))}
                   </ul>

@@ -19,11 +19,11 @@ interface RouteCodeInputProps {
 }
 
 /** Two-letter, letters-only abbreviation of a channel name (TRADICIONAL -> TR). */
-function abbr(name: string) {
+export function channelAbbr(name: string) {
   return name.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase();
 }
 
-const MAX_VISIBLE_CHANNELS = 3;
+export const MAX_VISIBLE_CHANNELS = 3;
 
 /** Max length of the editable route name. Shared with the form's counter. */
 export const ROUTE_NAME_MAX_LENGTH = 20;
@@ -88,7 +88,7 @@ export const RouteCodeInput = forwardRef<HTMLInputElement, RouteCodeInputProps>(
               <span className="text-muted-foreground/50">—</span>
             ) : (
               <span className="flex items-center gap-1 truncate">
-                {visibleChannels.map(abbr).join("·")}
+                {visibleChannels.map(channelAbbr).join("·")}
                 {restChannels > 0 && (
                   <span className="rounded bg-foreground/10 px-1 text-[10px] font-bold text-foreground/60">
                     +{restChannels}

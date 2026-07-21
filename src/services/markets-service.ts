@@ -1,4 +1,4 @@
-import type { Market, MarketInput } from "@/types";
+import type { Market, MarketInput, RouteStatus } from "@/types";
 import { SEED_MARKETS } from "@/data/seed";
 import { delay, uid } from "@/lib/utils";
 
@@ -16,7 +16,13 @@ export const marketsService = {
 
   create: (input: MarketInput): Promise<Market> => {
     const now = new Date().toISOString();
-    const market: Market = { id: uid("mkt"), ...input, createdAt: now, updatedAt: now };
+    const market: Market = {
+      id: uid("mkt"),
+      ...input,
+      status: input.status ?? "active",
+      createdAt: now,
+      updatedAt: now,
+    };
     MARKETS = [market, ...MARKETS];
     return delay(market, 450);
   },
@@ -31,6 +37,14 @@ export const marketsService = {
     });
     if (!updated) return Promise.reject(new Error("Mercado no encontrado"));
     return delay(updated, 450);
+  },
+
+  setStatus: (id: string, status: RouteStatus): Promise<Market> => {
+    const now = new Date().toISOString();
+    let updated: Market | undefined;
+    MARKETS = MARKETS.map((m) => (m.id === id ? (updated = { ...m, status, updatedAt: now }) : m));
+    if (!updated) return Promise.reject(new Error("Mercado no encontrado"));
+    return delay(updated, 300);
   },
 
   remove: (id: string): Promise<{ id: string }> => {

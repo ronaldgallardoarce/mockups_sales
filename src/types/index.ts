@@ -100,7 +100,9 @@ export interface RouteInput {
   name: string;
   color: string;
   status: RouteStatus;
-  /** Province the route belongs to (backend: provinceName / provinceId). */
+  /** City the route belongs to (backend: cityName). */
+  cityName?: string;
+  /** Province, derived from the selected city. */
   provinceName?: string;
   channelIds: string[];
   subcanalIds: string[];
@@ -147,6 +149,12 @@ export interface Market {
   id: string;
   name: string;
   color: string;
+  /** Active / inactive — markets are deactivated (not deleted) from the list. */
+  status: RouteStatus;
+  /** Department the market belongs to (backend: departmentName). */
+  departmentName?: string;
+  /** City the market belongs to (backend: cityName). */
+  cityName?: string;
   provinceName?: string;
   /** Manzanos (block ids) that compose the market's area. */
   blockIds: string[];
@@ -158,6 +166,13 @@ export interface Market {
 export interface MarketInput {
   name: string;
   color: string;
+  /** Active / inactive. Defaults to active on create. */
+  status?: RouteStatus;
+  /** Department (derived; all mock cities are in Santa Cruz). */
+  departmentName?: string;
+  /** City the market belongs to (backend: cityName). */
+  cityName?: string;
+  /** Province, derived from the selected city. */
   provinceName?: string;
   blockIds: string[];
 }
@@ -192,12 +207,37 @@ export const ALL_WEEKS: WeekPosition[] = [1, 2, 3, 4];
 export const ALL_DAYS: DayCode[] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
 export const WEEKDAY_DAYS: DayCode[] = ["MO", "TU", "WE", "TH", "FR"];
 
-/** How often a seller visits a specific route. */
+/** Cadence type of a route visit. */
+export type FrequencyType = "SEMANAL" | "QUINCENAL" | "MENSUAL";
+
+export const FREQUENCY_TYPE_LABELS: Record<FrequencyType, string> = {
+  SEMANAL: "Semanal",
+  QUINCENAL: "Quincenal",
+  MENSUAL: "Mensual",
+};
+
+export const ALL_FREQUENCY_TYPES: FrequencyType[] = ["SEMANAL", "QUINCENAL", "MENSUAL"];
+
+/**
+ * How often a seller visits a specific route:
+ *  - SEMANAL:   every week on `days`.
+ *  - QUINCENAL: every other week on `days`; the cycle is anchored to `validFrom`.
+ *  - MENSUAL:   on the selected `weeks` of the month, on `days`.
+ *
+ * `weeks` is only meaningful for MENSUAL. `validFrom`/`validTo` are date-only ISO
+ * strings (`YYYY-MM-DD`); mapping them to full timestamps is an API concern.
+ */
 export interface RouteFrequency {
-  /** Which weeks of the month the visit happens (1-4). */
-  weeks: WeekPosition[];
+  /** Cadence type. */
+  type: FrequencyType;
   /** Which days of the week the visit happens. */
   days: DayCode[];
+  /** Which weeks of the month the visit happens (MENSUAL only). */
+  weeks: WeekPosition[];
+  /** Start of the validity window (YYYY-MM-DD). */
+  validFrom: string;
+  /** End of the validity window (YYYY-MM-DD). */
+  validTo: string;
 }
 
 /** One route assignment with its visit frequency. */
@@ -239,6 +279,8 @@ export interface SellerDetailRoute {
   distributorId: number;
   valid_from: string;
   valid_to: string;
+  /** Markets the route covers (traditional channel), for display. */
+  markets: { name: string; color: string }[];
   blocks: SellerDetailBlock[];
 }
 

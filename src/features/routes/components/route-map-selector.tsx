@@ -12,6 +12,7 @@ import { DrawPolygonControl, type DrawHandle } from "@/features/map/components/d
 import { useBlocksStore } from "@/stores/blocks-store";
 import { useClientsBySubcanales } from "@/hooks/use-clients";
 import { pointInPolygon } from "@/lib/geo";
+import { bs } from "../lib/route-metrics";
 
 type DrawMode = "idle" | "drawing" | "draft";
 
@@ -25,6 +26,10 @@ interface RouteMapSelectorProps {
   focusClient?: Client | null;
   /** Per-block override colors (e.g. manzanos from an assigned market). */
   blockColors?: Record<string, string>;
+  /** Full set of manzanos of a market to preview (dashed) for comparison. */
+  previewBlockIds?: string[];
+  previewColor?: string;
+  previewLabel?: string;
 }
 
 /**
@@ -33,7 +38,7 @@ interface RouteMapSelectorProps {
  * sits outside every polygon, the user can draw a new one here (it's saved and
  * can then be optionally added to the route). Zoom stays fixed while selecting.
  */
-export function RouteMapSelector({ value, onToggle, subcanalIds, focusClient, blockColors }: RouteMapSelectorProps) {
+export function RouteMapSelector({ value, onToggle, subcanalIds, focusClient, blockColors, previewBlockIds, previewColor, previewLabel }: RouteMapSelectorProps) {
   const blocks = useBlocksStore((s) => s.blocks);
   const addBlock = useBlocksStore((s) => s.addBlock);
   const { data: clients = [], isFetching } = useClientsBySubcanales(subcanalIds);
@@ -49,6 +54,31 @@ export function RouteMapSelector({ value, onToggle, subcanalIds, focusClient, bl
     () => clients.filter((c) => selectedBlocks.some((b) => pointInPolygon([c.lat, c.lng], b.polygon))),
     [clients, selectedBlocks],
   );
+
+  // Sales potential of the selected manzanos: average ticket, total drop size.
+  const routeMetrics = useMemo(() => {
+    if (clientsInRoute.length === 0) return { avgTicket: 0, totalDrop: 0 };
+    const avgTicket = Math.round(
+      clientsInRoute.reduce((a, c) => a + c.ticketPromedio, 0) / clientsInRoute.length,
+    );
+    const totalDrop = clientsInRoute.reduce((a, c) => a + c.dropSize, 0);
+    return { avgTicket, totalDrop };
+  }, [clientsInRoute]);
+
+  // Per-manzano sales potential (channel clients that fall inside it) for hover tooltips.
+  const metricsByBlock = useMemo(() => {
+    const map = new Map<string, { count: number; ticketSum: number; drop: number }>();
+    for (const c of clients) {
+      const b = blocks.find((b) => pointInPolygon([c.lat, c.lng], b.polygon));
+      if (!b) continue;
+      const e = map.get(b.id) ?? { count: 0, ticketSum: 0, drop: 0 };
+      e.count += 1;
+      e.ticketSum += c.ticketPromedio;
+      e.drop += c.dropSize;
+      map.set(b.id, e);
+    }
+    return map;
+  }, [clients, blocks]);
 
   // Fit depends ONLY on the (channel) clients — not on the selection nor on the
   // blocks list — so the zoom stays put while selecting or drawing polygons.
@@ -79,7 +109,31 @@ export function RouteMapSelector({ value, onToggle, subcanalIds, focusClient, bl
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl border bg-muted">
       <BaseMap layerControl>
-        <BlockPolygons blocks={blocks} selectedIds={value} onSelect={(b) => onToggle(b.id)} blockColors={blockColors} />
+        <BlockPolygons
+          blocks={blocks}
+          selectedIds={value}
+          onSelect={(b) => onToggle(b.id)}
+          blockColors={blockColors}
+          ghostIds={previewBlockIds}
+          ghostColor={previewColor}
+          renderTooltip={
+            noChannels
+              ? undefined
+              : (block) => {
+                  const m = metricsByBlock.get(block.id);
+                  const count = m?.count ?? 0;
+                  const avg = count ? Math.round(m!.ticketSum / count) : 0;
+                  return (
+                    <div className="space-y-0.5">
+                      <div className="font-semibold">Manzano</div>
+                      <div>{count} {count === 1 ? "cliente" : "clientes"}</div>
+                      <div>Ticket prom. {bs(avg)}/mes</div>
+                      <div>DropSize total {bs(m?.drop ?? 0)}</div>
+                    </div>
+                  );
+                }
+          }
+        />
         {!noChannels && <ClientMarkers clients={clients} highlightedClientId={focusClient?.id} />}
         <FitBounds points={fitPoints} />
         <FlyToClient client={focusClient} />
@@ -160,6 +214,31 @@ export function RouteMapSelector({ value, onToggle, subcanalIds, focusClient, bl
           </span>
         )}
       </div>
+
+      {/* Route sales potential while selecting manzanos */}
+      {drawMode === "idle" && !noChannels && value.length > 0 && (
+        <div className="pointer-events-none absolute left-1/2 top-12 z-[400] flex -translate-x-1/2 gap-2 text-[11px]">
+          <span className="rounded-full border bg-background/95 px-2.5 py-1 shadow-sm backdrop-blur">
+            Ticket prom. <span className="font-semibold tabular-nums">{bs(routeMetrics.avgTicket)}/mes</span>
+          </span>
+          <span className="rounded-full border bg-background/95 px-2.5 py-1 shadow-sm backdrop-blur">
+            DropSize <span className="font-semibold tabular-nums">{bs(routeMetrics.totalDrop)}</span>
+          </span>
+        </div>
+      )}
+
+      {/* Market preview note */}
+      {previewBlockIds && previewBlockIds.length > 0 && (
+        <div className="pointer-events-none absolute bottom-3 left-1/2 z-[400] -translate-x-1/2 rounded-full border bg-background/95 px-3 py-1.5 text-[11px] shadow-sm backdrop-blur">
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: previewColor }}
+            />
+            Mercado <span className="font-medium">{previewLabel}</span> · contorno punteado = manzanos no incluidos
+          </span>
+        </div>
+      )}
 
       {!noChannels && isFetching && (
         <div className="absolute right-3 top-3 z-[400] flex items-center gap-1.5 rounded-full border bg-background/90 px-2.5 py-1 text-xs text-muted-foreground shadow-sm">

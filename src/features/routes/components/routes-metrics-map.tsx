@@ -1,49 +1,104 @@
 import { useMemo } from "react";
 import { Marker, Polygon, Popup, Tooltip as LeafletTooltip } from "react-leaflet";
 import { Route as RouteIcon } from "lucide-react";
-import type { LatLng } from "@/types";
+import type { Block, LatLng } from "@/types";
 import { BaseMap } from "@/features/map/components/base-map";
 import { FitBounds } from "@/features/map/components/fit-bounds";
 import { channelColor, getChannel, getSubcanal } from "@/data/channels";
 import { clientPinIcon } from "@/features/map/lib/leaflet-setup";
+import { pointInPolygon } from "@/lib/geo";
+import { cn } from "@/lib/utils";
 import { bs, type ClientMetric, type RouteMetric } from "../lib/route-metrics";
+
+/** Amber, used to flag a manzano shared by more than one route. */
+const SHARED_COLOR = "#f59e0b";
 
 interface RoutesMetricsMapProps {
   routeMetrics: RouteMetric[];
   clientMetrics: ClientMetric[];
+  fullscreenTargetRef?: React.RefObject<HTMLElement>;
 }
 
 /** Map of route polygons with per-route and per-client sales/seller metrics. */
-export function RoutesMetricsMap({ routeMetrics, clientMetrics }: RoutesMetricsMapProps) {
+export function RoutesMetricsMap({ routeMetrics, clientMetrics, fullscreenTargetRef }: RoutesMetricsMapProps) {
+  // Group by manzano: a block can belong to several routes, so we draw it once
+  // and list every route that shares it (instead of stacking overlapping polygons).
+  // Ticket/drop are computed at the manzano level — over the clients inside it.
+  const blockGroups = useMemo(() => {
+    const map = new Map<string, { block: Block; routes: RouteMetric[] }>();
+    for (const rm of routeMetrics) {
+      for (const b of rm.blocks) {
+        const entry = map.get(b.id) ?? { block: b, routes: [] };
+        entry.routes.push(rm);
+        map.set(b.id, entry);
+      }
+    }
+    return [...map.values()].map(({ block, routes }) => {
+      const clientsIn = clientMetrics.filter((cm) =>
+        pointInPolygon([cm.client.lat, cm.client.lng], block.polygon),
+      );
+      const clientCount = clientsIn.length;
+      const avgTicket = clientCount
+        ? Math.round(clientsIn.reduce((a, cm) => a + cm.client.ticketPromedio, 0) / clientCount)
+        : 0;
+      const totalDrop = clientsIn.reduce((a, cm) => a + cm.client.dropSize, 0);
+      return { block, routes, clientCount, avgTicket, totalDrop };
+    });
+  }, [routeMetrics, clientMetrics]);
+
   const fitPoints = useMemo<LatLng[]>(() => {
     const pts: LatLng[] = [];
-    routeMetrics.forEach(({ blocks }) => blocks.forEach((b) => b.polygon.forEach((p) => pts.push(p))));
+    blockGroups.forEach(({ block }) => block.polygon.forEach((p) => pts.push(p)));
     return pts;
-  }, [routeMetrics]);
+  }, [blockGroups]);
 
-  const hasRoutes = routeMetrics.some((rm) => rm.blocks.length > 0);
+  const hasRoutes = blockGroups.length > 0;
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl border bg-muted">
-      <BaseMap layerControl>
-        {routeMetrics.map(({ route, blocks, clientCount, sellerCount, avgTicket, totalDrop }) =>
-          blocks.map((block) => (
+      <BaseMap layerControl fullscreenTargetRef={fullscreenTargetRef}>
+        {blockGroups.map(({ block, routes, clientCount, avgTicket, totalDrop }) => {
+          const shared = routes.length > 1;
+          const color = shared ? SHARED_COLOR : routes[0].route.color;
+          return (
             <Polygon
-              key={`${route.id}-${block.id}`}
+              key={block.id}
               positions={block.polygon}
-              pathOptions={{ color: route.color, weight: 2, fillColor: route.color, fillOpacity: 0.26 }}
+              pathOptions={{
+                color,
+                weight: shared ? 3 : 2,
+                fillColor: color,
+                fillOpacity: shared ? 0.3 : 0.26,
+                dashArray: shared ? "6 4" : undefined,
+              }}
             >
               <LeafletTooltip sticky>
-                <div className="space-y-0.5">
-                  <div className="font-semibold" style={{ color: route.color }}>{route.name}</div>
-                  <div>{sellerCount} vendedor(es) · {clientCount} clientes</div>
+                <div className="space-y-1">
+                  <div className="font-semibold">
+                    Manzano
+                    {shared && <span className="text-amber-600 dark:text-amber-400"> · compartido</span>}
+                  </div>
+                  <div className={cn("font-medium", shared && "text-amber-600 dark:text-amber-400")}>
+                    {routes.length} {routes.length === 1 ? "ruta" : "rutas"} · {clientCount} clientes
+                  </div>
                   <div>Ticket prom. {bs(avgTicket)}/mes</div>
                   <div>DropSize total {bs(totalDrop)}</div>
+                  <div className="space-y-0.5 border-t pt-1">
+                    {routes.map((rm) => (
+                      <div key={rm.route.id} className="flex items-center gap-1">
+                        <span
+                          className="inline-block h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: rm.route.color }}
+                        />
+                        {rm.route.name}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </LeafletTooltip>
             </Polygon>
-          )),
-        )}
+          );
+        })}
 
         {clientMetrics.map(({ client, sellerCount }) => {
           const color = channelColor(client.channelId);

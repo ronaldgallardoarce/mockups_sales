@@ -270,7 +270,7 @@ export function ManageMapPage() {
         </div>
       )}
 
-      <div className="relative h-[calc(100vh-13rem)] min-h-[480px] overflow-hidden rounded-xl border">
+      <div className="relative min-h-[480px] flex-1 overflow-hidden rounded-xl border">
         <BaseMap layerControl>
           <BlocksEditor
             blocks={blocks}

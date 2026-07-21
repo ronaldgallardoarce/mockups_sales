@@ -9,7 +9,7 @@ export const routeSchema = z.object({
     .string()
     .regex(/^#([0-9a-fA-F]{6})$/, "Color inválido"),
   status: z.enum(["active", "inactive"]),
-  provinceName: z.string().min(1, "Selecciona una provincia"),
+  cityName: z.string().min(1, "Selecciona una ciudad"),
   channelIds: z.array(z.string()).min(1, "Selecciona al menos un canal de venta"),
   subcanalIds: z.array(z.string()).min(1, "Selecciona al menos un subcanal"),
   blockIds: z.array(z.string()).min(1, "Selecciona al menos un manzano en el mapa"),

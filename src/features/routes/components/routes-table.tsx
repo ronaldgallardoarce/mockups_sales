@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChannelBadge, ColorDot } from "@/components/common/channel-badge";
 import { StatusBadge } from "./status-badge";
 import { RouteActions } from "./route-actions";
+import { formatRouteCode } from "../lib/route-code";
 
 // Shows up to 2 channel badges inline (backend `saleChannels`), collapsing the
 // rest into a "+N" pill.
@@ -31,10 +32,9 @@ interface RoutesTableProps {
   routes: Route[];
   loading?: boolean;
   onView: (route: Route) => void;
-  onDelete: (route: Route) => void;
 }
 
-export function RoutesTable({ routes, loading, onView, onDelete }: RoutesTableProps) {
+export function RoutesTable({ routes, loading, onView }: RoutesTableProps) {
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
       <Table className="text-[13px]">
@@ -66,7 +66,8 @@ export function RoutesTable({ routes, loading, onView, onDelete }: RoutesTablePr
                     <span className="flex items-center gap-2.5">
                       {/* Color folded into the name as an accent dot instead of its own column. */}
                       <ColorDot color={route.color} className="h-3 w-3 shrink-0" />
-                      {route.name}
+                      {/* Route code as plain text: SC-FE-PA-123-Zona Norte. */}
+                      {formatRouteCode(route)}
                     </span>
                   </TableCell>
                   <TableCell><ChannelCell channelIds={route.channelIds} /></TableCell>
@@ -74,7 +75,7 @@ export function RoutesTable({ routes, loading, onView, onDelete }: RoutesTablePr
                   <TableCell className="text-muted-foreground">{route.cityName ?? "—"}</TableCell>
                   <TableCell><StatusBadge status={route.status} /></TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <RouteActions route={route} onView={onView} onDelete={onDelete} />
+                    <RouteActions route={route} onView={onView} />
                   </TableCell>
                 </TableRow>
               ))}

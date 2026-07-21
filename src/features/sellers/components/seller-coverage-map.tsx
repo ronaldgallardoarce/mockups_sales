@@ -20,12 +20,16 @@ interface SellerCoverageMapProps {
   excludedClientIds?: Set<string>;
   /** Client ids manually assigned despite falling outside the route polygons. */
   manualClientIds?: Set<string>;
-  /** Toggle a client's excluded state (enables map popup actions). */
-  onToggleExclude?: (client: Client) => void;
+  /**
+   * Hand a client to the parent to open its clients manager. Excluding/reassigning
+   * happens there, not on the map — so the map never selects sellers itself, nor
+   * decides which route the client belongs to.
+   */
+  onManageClient?: (client: Client) => void;
 }
 
 /** Read-only preview: every assigned route's manzanos in its own color, plus their clients. */
-export function SellerCoverageMap({ routes, focusClient, excludedClientIds, manualClientIds, onToggleExclude }: SellerCoverageMapProps) {
+export function SellerCoverageMap({ routes, focusClient, excludedClientIds, manualClientIds, onManageClient }: SellerCoverageMapProps) {
   const allBlocks = useBlocksStore((s) => s.blocks);
 
   const allSubcanalIds = useMemo(
@@ -94,7 +98,8 @@ export function SellerCoverageMap({ routes, focusClient, excludedClientIds, manu
         <ClientMarkers
           clients={includedClients}
           highlightedClientId={focusClient?.id}
-          onExclude={onToggleExclude}
+          onManage={onManageClient}
+          manageLabel="Gestionar en la ruta"
         />
         {excludedClients.map((client) => (
           <Marker key={client.id} position={[client.lat, client.lng]} icon={excludedPinIcon()}>
@@ -109,13 +114,13 @@ export function SellerCoverageMap({ routes, focusClient, excludedClientIds, manu
                 <p className="text-sm font-semibold">{client.name}</p>
                 <p className="text-xs text-muted-foreground">{client.code} · {client.ownerName}</p>
                 <p className="text-xs font-medium text-destructive">Excluido de la ruta</p>
-                {onToggleExclude && (
+                {onManageClient && (
                   <button
                     type="button"
-                    onClick={() => onToggleExclude(client)}
+                    onClick={() => onManageClient(client)}
                     className="mt-1.5 flex w-full items-center justify-center gap-1 rounded border border-primary/40 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
                   >
-                    Volver a incluir
+                    Gestionar en la ruta
                   </button>
                 )}
               </div>

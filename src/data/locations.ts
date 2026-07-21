@@ -15,3 +15,26 @@ export const PROVINCES: Province[] = [
   { id: 3, name: "WARNES" },
   { id: 4, name: "SARA" },
 ];
+
+/** All mock cities belong to the Santa Cruz department. */
+export const DEPARTMENT_NAME = "SANTA CRUZ";
+
+/** A city and the province it belongs to (Santa Cruz department). */
+export interface City {
+  name: string;
+  provinceName: string;
+}
+
+export const CITIES: City[] = [
+  { name: "SANTA CRUZ", provinceName: "ANDRES IBAÑEZ" },
+  { name: "MONTERO", provinceName: "OBISPO SANTISTEVAN" },
+  { name: "WARNES", provinceName: "WARNES" },
+  { name: "LA GUARDIA", provinceName: "ANDRES IBAÑEZ" },
+  { name: "COTOCA", provinceName: "ANDRES IBAÑEZ" },
+  { name: "PORTACHUELO", provinceName: "SARA" },
+];
+
+/** Look up the province a city belongs to. */
+export function provinceForCity(cityName: string): string | undefined {
+  return CITIES.find((c) => c.name === cityName)?.provinceName;
+}

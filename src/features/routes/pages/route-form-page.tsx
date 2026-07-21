@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, MapIcon, Save, Store, X } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, MapIcon, Save, Store, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Client } from "@/types";
 import { routeSchema, type RouteFormValues } from "../route-schema";
 import { getSubcanalesByChannel } from "@/data/channels";
-import { PROVINCES } from "@/data/locations";
+import { CITIES, provinceForCity } from "@/data/locations";
 import { useChannels } from "@/hooks/use-channels";
 import { useClients } from "@/hooks/use-clients";
 import { useCreateRoute, useRoute, useUpdateRoute } from "@/hooks/use-routes";
 import { useMarkets } from "@/hooks/use-markets";
+import { useAllSellers, useUpdateSellerRoutes } from "@/hooks/use-sellers";
 import { useRole, canViewMarkets } from "@/stores/session-store";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,8 +29,9 @@ import { ChannelMultiSelect } from "../components/channel-multiselect";
 import { SubcanalSelector } from "../components/subcanal-selector";
 import { RouteMapSelector } from "../components/route-map-selector";
 import { SelectedClientsSection } from "../components/selected-clients-section";
+import { RouteSellerAssign, type RouteSellerAssignment } from "@/features/sellers/components/route-seller-assign";
 
-const PROVINCE_OPTIONS = PROVINCES.map((p) => ({ value: p.name, label: p.name }));
+const CITY_OPTIONS = CITIES.map((c) => ({ value: c.name, label: c.name }));
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -45,8 +48,10 @@ export function RouteFormPage() {
   const { data: markets = [] } = useMarkets();
   const { data: existing, isLoading: loadingRoute } = useRoute(id);
   const role = useRole();
+  const { data: allSellers = [] } = useAllSellers();
   const createRoute = useCreateRoute();
   const updateRoute = useUpdateRoute();
+  const updateSellerRoutes = useUpdateSellerRoutes();
 
   const {
     control,
@@ -61,7 +66,7 @@ export function RouteFormPage() {
       name: "",
       color: "#264bc5",
       status: "active",
-      provinceName: "",
+      cityName: "",
       channelIds: [],
       subcanalIds: [],
       blockIds: [],
@@ -76,7 +81,7 @@ export function RouteFormPage() {
         name: existing.name,
         color: existing.color,
         status: existing.status,
-        provinceName: existing.provinceName ?? "",
+        cityName: existing.cityName ?? "",
         channelIds: existing.channelIds,
         subcanalIds: existing.subcanalIds,
         blockIds: existing.blockIds,
@@ -90,7 +95,7 @@ export function RouteFormPage() {
   const blockIds = watch("blockIds");
   const marketIds = watch("marketIds");
   const status = watch("status");
-  const provinceName = watch("provinceName");
+  const cityName = watch("cityName");
   const name = watch("name");
 
   // Channel names of the current selection — feeds the route code preview.
@@ -118,6 +123,29 @@ export function RouteFormPage() {
 
   const [focusClient, setFocusClient] = useState<Client | null>(null);
   const [marketDialogOpen, setMarketDialogOpen] = useState(false);
+  // Market whose full extent is previewed on the map (to compare vs the selection).
+  const [previewMarketId, setPreviewMarketId] = useState<string | null>(null);
+
+  const previewMarket = useMemo(
+    () => assignedMarkets.find((m) => m.id === previewMarketId) ?? null,
+    [assignedMarkets, previewMarketId],
+  );
+
+  // Sellers assigned to this route (with frequency) — persisted after the route on save.
+  const [sellerAssignments, setSellerAssignments] = useState<RouteSellerAssignment[]>([]);
+  const seededForId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isEdit || !id || allSellers.length === 0 || seededForId.current === id) return;
+    setSellerAssignments(
+      allSellers
+        .filter((s) => s.routeAssignments.some((a) => a.routeId === id))
+        .map((s) => ({
+          sellerCode: s.code,
+          frequency: s.routeAssignments.find((a) => a.routeId === id)!.frequency,
+        })),
+    );
+    seededForId.current = id;
+  }, [isEdit, id, allSellers]);
 
   const toggleBlock = (blockId: string) => {
     const next = blockIds.includes(blockId)
@@ -155,12 +183,35 @@ export function RouteFormPage() {
     setValue("subcanalIds", Array.from(new Set(subs)), { shouldValidate: true, shouldDirty: true });
   };
 
-  const onSubmit = async (values: RouteFormValues) => {
-    if (isEdit && id) {
-      await updateRoute.mutateAsync({ id, input: values });
-    } else {
-      await createRoute.mutateAsync(values);
+  /** Persist the route's seller assignments (children), reconciling adds/removes/changes. */
+  const syncSellerAssignments = async (routeId: string) => {
+    const desired = new Map(sellerAssignments.map((a) => [a.sellerCode, a.frequency]));
+    const affected = new Set<number>([
+      ...desired.keys(),
+      ...allSellers.filter((s) => s.routeAssignments.some((a) => a.routeId === routeId)).map((s) => s.code),
+    ]);
+    for (const code of affected) {
+      const seller = allSellers.find((s) => s.code === code);
+      if (!seller) continue;
+      const wantFreq = desired.get(code);
+      const currentFreq = seller.routeAssignments.find((a) => a.routeId === routeId)?.frequency;
+      const hadIt = currentFreq !== undefined;
+      if (!hadIt && !wantFreq) continue;
+      if (hadIt && wantFreq && JSON.stringify(currentFreq) === JSON.stringify(wantFreq)) continue;
+      const without = seller.routeAssignments.filter((a) => a.routeId !== routeId);
+      const next = wantFreq ? [...without, { routeId, frequency: wantFreq }] : without;
+      await updateSellerRoutes.mutateAsync({ code, routeAssignments: next });
     }
+  };
+
+  const onSubmit = async (values: RouteFormValues) => {
+    // Province is derived from the selected city, so both stay in sync.
+    const input = { ...values, provinceName: provinceForCity(values.cityName) };
+    // Parent first: save the route to get its id, then persist its sellers (children).
+    const saved = isEdit && id
+      ? await updateRoute.mutateAsync({ id, input })
+      : await createRoute.mutateAsync(input);
+    await syncSellerAssignments(saved.id);
     navigate("/routes");
   };
 
@@ -257,17 +308,17 @@ export function RouteFormPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="provinceName">Provincia</Label>
+                <Label htmlFor="cityName">Ciudad</Label>
                 <Combobox
-                  id="provinceName"
-                  options={PROVINCE_OPTIONS}
-                  value={provinceName}
-                  onChange={(v) => setValue("provinceName", v, { shouldValidate: true, shouldDirty: true })}
-                  placeholder="Selecciona una provincia"
-                  searchPlaceholder="Buscar provincia…"
-                  invalid={!!errors.provinceName}
+                  id="cityName"
+                  options={CITY_OPTIONS}
+                  value={cityName}
+                  onChange={(v) => setValue("cityName", v, { shouldValidate: true, shouldDirty: true })}
+                  placeholder="Selecciona una ciudad"
+                  searchPlaceholder="Buscar ciudad…"
+                  invalid={!!errors.cityName}
                 />
-                <FieldError message={errors.provinceName?.message} />
+                <FieldError message={errors.cityName?.message} />
               </div>
 
               <div className="space-y-2">
@@ -311,30 +362,71 @@ export function RouteFormPage() {
                   </p>
                 ) : (
                   <ul className="space-y-1.5">
-                    {assignedMarkets.map((m) => (
-                      <li key={m.id} className="flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm">
-                        <ColorDot color={m.color} className="h-3.5 w-3.5" />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">{m.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {m.provinceName ?? "—"} · {m.blockIds.length} manzanos
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => applyMarkets(marketIds.filter((id) => id !== m.id))}
-                          className="shrink-0 rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          aria-label={`Quitar ${m.name}`}
+                    {assignedMarkets.map((m) => {
+                      const selectedCount = m.blockIds.filter((b) => blockIds.includes(b)).length;
+                      const partial = selectedCount < m.blockIds.length;
+                      const isPreview = previewMarketId === m.id;
+                      return (
+                        <li
+                          key={m.id}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors",
+                            isPreview && "border-primary/50 bg-primary/5",
+                          )}
                         >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </li>
-                    ))}
+                          <ColorDot color={m.color} className="h-3.5 w-3.5" />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-medium">{m.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {m.provinceName ?? "—"} ·{" "}
+                              <span className={cn(partial && "font-medium text-amber-600 dark:text-amber-400")}>
+                                {selectedCount}/{m.blockIds.length} manzanos
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewMarketId(isPreview ? null : m.id)}
+                            title={isPreview ? "Ocultar mercado completo" : "Ver mercado completo en el mapa"}
+                            aria-label={isPreview ? "Ocultar mercado completo" : "Ver mercado completo"}
+                            className={cn(
+                              "shrink-0 rounded-sm p-0.5 transition-colors",
+                              isPreview
+                                ? "text-primary hover:bg-primary/10"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                            )}
+                          >
+                            {isPreview ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isPreview) setPreviewMarketId(null);
+                              applyMarkets(marketIds.filter((id) => id !== m.id));
+                            }}
+                            className="shrink-0 rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            aria-label={`Quitar ${m.name}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardContent className="p-5">
+              <RouteSellerAssign
+                sellers={allSellers}
+                value={sellerAssignments}
+                onChange={setSellerAssignments}
+              />
+            </CardContent>
+          </Card>
 
           <SelectedClientsSection subcanalIds={subcanalIds} blockIds={blockIds} clients={clients} onClientClick={setFocusClient} />
         </div>
@@ -349,7 +441,16 @@ export function RouteFormPage() {
             <FieldError message={errors.blockIds?.message} />
           </div>
           <div className="h-[460px] lg:h-[calc(100%-2rem)]">
-            <RouteMapSelector value={blockIds} onToggle={toggleBlock} subcanalIds={subcanalIds} focusClient={focusClient} blockColors={marketBlockColors} />
+            <RouteMapSelector
+              value={blockIds}
+              onToggle={toggleBlock}
+              subcanalIds={subcanalIds}
+              focusClient={focusClient}
+              blockColors={marketBlockColors}
+              previewBlockIds={previewMarket?.blockIds}
+              previewColor={previewMarket?.color}
+              previewLabel={previewMarket?.name}
+            />
           </div>
         </div>
       </div>
