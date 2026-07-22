@@ -2,7 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff, Loader2, MapIcon, Save, Store, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Loader2,
+  MapIcon,
+  PanelRightClose,
+  PanelRightOpen,
+  Receipt,
+  Save,
+  ShoppingBag,
+  Store,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Client } from "@/types";
 import { routeSchema, type RouteFormValues } from "../route-schema";
@@ -30,6 +43,7 @@ import { SubcanalSelector } from "../components/subcanal-selector";
 import { RouteMapSelector } from "../components/route-map-selector";
 import { SelectedClientsSection } from "../components/selected-clients-section";
 import { RouteSellerAssign, type RouteSellerAssignment } from "@/features/sellers/components/route-seller-assign";
+import { bs, computeSelectionMetrics, useSelectionClients } from "../lib/route-metrics";
 
 const CITY_OPTIONS = CITIES.map((c) => ({ value: c.name, label: c.name }));
 
@@ -121,8 +135,13 @@ export function RouteFormPage() {
     return map;
   }, [assignedMarkets]);
 
+  // Ticket promedio / drop size of the clients currently covered by the selection.
+  const selectionClients = useSelectionClients(clients, subcanalIds, blockIds);
+  const selectionMetrics = useMemo(() => computeSelectionMetrics(selectionClients), [selectionClients]);
+
   const [focusClient, setFocusClient] = useState<Client | null>(null);
   const [marketDialogOpen, setMarketDialogOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
   // Market whose full extent is previewed on the map (to compare vs the selection).
   const [previewMarketId, setPreviewMarketId] = useState<string | null>(null);
 
@@ -219,12 +238,14 @@ export function RouteFormPage() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-9 w-64" />
-        <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
+        <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)_380px]">
+          <Skeleton className="h-[520px]" />
+          <Skeleton className="h-[520px]" />
           <div className="space-y-4">
-            <Skeleton className="h-[520px]" />
+            <Skeleton className="h-[80px]" />
+            <Skeleton className="h-[160px]" />
             <Skeleton className="h-[200px]" />
           </div>
-          <Skeleton className="h-[520px]" />
         </div>
       </div>
     );
@@ -249,8 +270,13 @@ export function RouteFormPage() {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-        {/* ---- Form column (scrollable) ---- */}
+      <div
+        className={cn(
+          "grid gap-6",
+          rightPanelOpen ? "lg:grid-cols-[380px_minmax(0,1fr)_380px]" : "lg:grid-cols-[380px_minmax(0,1fr)]",
+        )}
+      >
+        {/* ---- Form column: basic data (scrollable) ---- */}
         <div className="space-y-4 overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
           <Card>
             <CardContent className="space-y-4 p-5">
@@ -344,6 +370,78 @@ export function RouteFormPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* ---- Manzano selector column ---- */}
+        <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-8rem)]">
+          <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <MapIcon className="h-4 w-4" />
+              Selecciona los manzanos que componen la ruta
+            </span>
+            <div className="flex items-center gap-2">
+              <FieldError message={errors.blockIds?.message} />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setRightPanelOpen((v) => !v)}
+              >
+                {rightPanelOpen ? (
+                  <PanelRightClose className="h-3.5 w-3.5" />
+                ) : (
+                  <PanelRightOpen className="h-3.5 w-3.5" />
+                )}
+                {rightPanelOpen ? "Ocultar panel" : "Mostrar panel"}
+              </Button>
+            </div>
+          </div>
+          <div className="h-[460px] lg:h-[calc(100%-2rem)]">
+            <RouteMapSelector
+              value={blockIds}
+              onToggle={toggleBlock}
+              subcanalIds={subcanalIds}
+              focusClient={focusClient}
+              blockColors={marketBlockColors}
+              previewBlockIds={previewMarket?.blockIds}
+              previewColor={previewMarket?.color}
+              previewLabel={previewMarket?.name}
+            />
+          </div>
+        </div>
+
+        {/* ---- Form column: sales potential, sellers, markets, clients (scrollable) ---- */}
+        {rightPanelOpen && (
+        <div className="space-y-4 overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
+          {selectionClients.length > 0 && (
+            <Card>
+              <CardContent className="grid grid-cols-2 gap-2.5 p-5">
+                <div className="rounded-lg border p-2.5">
+                  <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Receipt className="h-3.5 w-3.5" /> Ticket promedio
+                  </p>
+                  <p className="text-sm font-semibold tabular-nums">{bs(selectionMetrics.avgTicket)}/mes</p>
+                </div>
+                <div className="rounded-lg border p-2.5">
+                  <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <ShoppingBag className="h-3.5 w-3.5" /> DropSize total
+                  </p>
+                  <p className="text-sm font-semibold tabular-nums">{bs(selectionMetrics.totalDrop)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardContent className="p-5">
+              <RouteSellerAssign
+                sellers={allSellers}
+                value={sellerAssignments}
+                onChange={setSellerAssignments}
+              />
+            </CardContent>
+          </Card>
 
           {showMarkets && (
             <Card>
@@ -418,41 +516,15 @@ export function RouteFormPage() {
             </Card>
           )}
 
-          <Card>
-            <CardContent className="p-5">
-              <RouteSellerAssign
-                sellers={allSellers}
-                value={sellerAssignments}
-                onChange={setSellerAssignments}
-              />
-            </CardContent>
-          </Card>
-
-          <SelectedClientsSection subcanalIds={subcanalIds} blockIds={blockIds} clients={clients} onClientClick={setFocusClient} />
+          <SelectedClientsSection
+            subcanalIds={subcanalIds}
+            blockIds={blockIds}
+            clients={clients}
+            onClientClick={setFocusClient}
+            hideMetrics
+          />
         </div>
-
-        {/* ---- Manzano selector column ---- */}
-        <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-8rem)]">
-          <div className="mb-2 flex items-center justify-between gap-2 text-sm">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <MapIcon className="h-4 w-4" />
-              Selecciona los manzanos que componen la ruta
-            </span>
-            <FieldError message={errors.blockIds?.message} />
-          </div>
-          <div className="h-[460px] lg:h-[calc(100%-2rem)]">
-            <RouteMapSelector
-              value={blockIds}
-              onToggle={toggleBlock}
-              subcanalIds={subcanalIds}
-              focusClient={focusClient}
-              blockColors={marketBlockColors}
-              previewBlockIds={previewMarket?.blockIds}
-              previewColor={previewMarket?.color}
-              previewLabel={previewMarket?.name}
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {showMarkets && (
