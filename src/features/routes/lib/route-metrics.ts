@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import type { Block, Client, Route, Seller } from "@/types";
 import { pointInPolygon } from "@/lib/geo";
+import { useBlocksStore } from "@/stores/blocks-store";
 
 export interface RouteMetric {
   route: Route;
@@ -114,4 +116,27 @@ export function computeRoutesMetrics(
 /** Format a number as Bolivian currency (Bs). */
 export function bs(n: number) {
   return `Bs ${n.toLocaleString("es-BO")}`;
+}
+
+/** Clients matching a route-in-progress selection: subcanales, and optionally inside the chosen manzanos. */
+export function useSelectionClients(clients: Client[], subcanalIds: string[], blockIds: string[]) {
+  const blocks = useBlocksStore((s) => s.blocks);
+  return useMemo(() => {
+    let result = clients.filter((c) => subcanalIds.includes(c.subcanalId));
+    if (blockIds.length > 0) {
+      const selectedBlocks = blocks.filter((b) => blockIds.includes(b.id));
+      result = result.filter((c) =>
+        selectedBlocks.some((b) => pointInPolygon([c.lat, c.lng], b.polygon)),
+      );
+    }
+    return result;
+  }, [clients, subcanalIds, blockIds, blocks]);
+}
+
+/** Average ticket and total drop size across a set of clients. */
+export function computeSelectionMetrics(clients: Client[]) {
+  if (clients.length === 0) return { avgTicket: 0, totalDrop: 0 };
+  const avgTicket = Math.round(clients.reduce((a, c) => a + c.ticketPromedio, 0) / clients.length);
+  const totalDrop = clients.reduce((a, c) => a + c.dropSize, 0);
+  return { avgTicket, totalDrop };
 }

@@ -3,9 +3,7 @@ import { ArrowUpRight, ChevronDown, ChevronRight, Crosshair, UserCheck, Users } 
 import type { Client, Seller } from "@/types";
 import { cn } from "@/lib/utils";
 import { getChannel, getSubcanal } from "@/data/channels";
-import { useBlocksStore } from "@/stores/blocks-store";
-import { pointInPolygon } from "@/lib/geo";
-import { bs } from "../lib/route-metrics";
+import { bs, computeSelectionMetrics, useSelectionClients } from "../lib/route-metrics";
 
 type ViewMode = "channel" | "subcanal" | "all";
 
@@ -22,6 +20,8 @@ interface SelectedClientsSectionProps {
   reassignments?: Record<string, number>;
   /** Open the route clients manager focused on this client (exclusion happens there). */
   onManageClient?: (client: Client) => void;
+  /** Hide the ticket promedio / drop size summary — used when it's already shown elsewhere. */
+  hideMetrics?: boolean;
 }
 
 const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
@@ -30,35 +30,18 @@ const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: "all", label: "Todos" },
 ];
 
-export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClientClick, excludedClientIds, sellers, reassignments, onManageClient }: SelectedClientsSectionProps) {
+export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClientClick, excludedClientIds, sellers, reassignments, onManageClient, hideMetrics }: SelectedClientsSectionProps) {
   const [mode, setMode] = useState<ViewMode>("channel");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const blocks = useBlocksStore((s) => s.blocks);
   const isExcluded = (id: string) => excludedClientIds?.has(id) ?? false;
   const manageEnabled = !!onManageClient;
   const replacementName = (c: Client) =>
     sellers?.find((s) => s.code === reassignments?.[c.id])?.name;
 
-  const filtered = useMemo(() => {
-    let result = clients.filter((c) => subcanalIds.includes(c.subcanalId));
-    if (blockIds.length > 0) {
-      const selectedBlocks = blocks.filter((b) => blockIds.includes(b.id));
-      result = result.filter((c) =>
-        selectedBlocks.some((b) => pointInPolygon([c.lat, c.lng], b.polygon)),
-      );
-    }
-    return result;
-  }, [clients, subcanalIds, blockIds, blocks]);
+  const filtered = useSelectionClients(clients, subcanalIds, blockIds);
 
   // Sales potential of the current coverage: average ticket, total drop size.
-  const metrics = useMemo(() => {
-    if (filtered.length === 0) return { avgTicket: 0, totalDrop: 0 };
-    const avgTicket = Math.round(
-      filtered.reduce((a, c) => a + c.ticketPromedio, 0) / filtered.length,
-    );
-    const totalDrop = filtered.reduce((a, c) => a + c.dropSize, 0);
-    return { avgTicket, totalDrop };
-  }, [filtered]);
+  const metrics = useMemo(() => computeSelectionMetrics(filtered), [filtered]);
 
   const groups = useMemo(() => {
     if (mode === "all") return null;
@@ -130,7 +113,7 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-medium">
           <Users className="h-4 w-4 text-muted-foreground" />
-          {blockIds.length > 0 ? "Clientes en polígono" : "Clientes"}
+          {blockIds.length > 0 ? "Clientes en ruta" : "Clientes"}
           <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
             {filtered.length}
           </span>
@@ -159,7 +142,7 @@ export function SelectedClientsSection({ subcanalIds, blockIds, clients, onClien
         </div>
       </div>
 
-      {filtered.length > 0 && (
+      {!hideMetrics && filtered.length > 0 && (
         <div className="flex items-center gap-6 rounded-lg border bg-muted/30 px-3 py-2">
           <div className="flex flex-col">
             <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Ticket promedio</span>
