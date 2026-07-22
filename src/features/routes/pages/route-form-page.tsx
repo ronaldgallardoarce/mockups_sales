@@ -238,7 +238,7 @@ export function RouteFormPage() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-9 w-64" />
-        <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)_380px]">
+        <div className="grid gap-4 xl:gap-5 cols:grid-cols-[240px_minmax(0,1fr)_240px] xl:grid-cols-[300px_minmax(0,1fr)_300px] 2xl:grid-cols-[360px_minmax(0,1fr)_360px]">
           <Skeleton className="h-[520px]" />
           <Skeleton className="h-[520px]" />
           <div className="space-y-4">
@@ -272,17 +272,19 @@ export function RouteFormPage() {
 
       <div
         className={cn(
-          "grid gap-6",
-          rightPanelOpen ? "lg:grid-cols-[380px_minmax(0,1fr)_380px]" : "lg:grid-cols-[380px_minmax(0,1fr)]",
+          "grid gap-4 xl:gap-5",
+          rightPanelOpen
+            ? "cols:grid-cols-[240px_minmax(0,1fr)_240px] xl:grid-cols-[300px_minmax(0,1fr)_300px] 2xl:grid-cols-[360px_minmax(0,1fr)_360px]"
+            : "cols:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]",
         )}
       >
         {/* ---- Form column: basic data (scrollable) ---- */}
-        <div className="space-y-4 overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
+        <div className="space-y-4 cols:max-h-[calc(100vh-8rem)] cols:overflow-y-auto">
           <Card>
             <CardContent className="space-y-4 p-5">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="name">Código de ruta</Label>
+                  <Label htmlFor="name">Nombre de ruta</Label>
                   <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
                     {(name?.length ?? 0)}/{ROUTE_NAME_MAX_LENGTH}
                   </span>
@@ -294,7 +296,7 @@ export function RouteFormPage() {
                     <RouteCodeInput
                       id="name"
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(v) => field.onChange(v.toUpperCase())}
                       channels={selectedChannelNames}
                       autoId={isEdit ? id : undefined}
                       invalid={!!errors.name}
@@ -373,7 +375,7 @@ export function RouteFormPage() {
         </div>
 
         {/* ---- Manzano selector column ---- */}
-        <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-8rem)]">
+        <div className="cols:sticky cols:top-20 cols:h-[calc(100vh-8rem)]">
           <div className="mb-2 flex items-center justify-between gap-2 text-sm">
             <span className="flex items-center gap-2 text-muted-foreground">
               <MapIcon className="h-4 w-4" />
@@ -397,7 +399,7 @@ export function RouteFormPage() {
               </Button>
             </div>
           </div>
-          <div className="h-[460px] lg:h-[calc(100%-2rem)]">
+          <div className="h-[420px] cols:h-[calc(100%-2rem)]">
             <RouteMapSelector
               value={blockIds}
               onToggle={toggleBlock}
@@ -413,7 +415,7 @@ export function RouteFormPage() {
 
         {/* ---- Form column: sales potential, sellers, markets, clients (scrollable) ---- */}
         {rightPanelOpen && (
-        <div className="space-y-4 overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
+        <div className="space-y-4 cols:max-h-[calc(100vh-8rem)] cols:overflow-y-auto">
           {selectionClients.length > 0 && (
             <Card>
               <CardContent className="grid grid-cols-2 gap-2.5 p-5">

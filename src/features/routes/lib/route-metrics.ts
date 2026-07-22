@@ -9,6 +9,8 @@ export interface RouteMetric {
   clientCount: number;
   /** Sellers assigned to this route. */
   sellerCount: number;
+  /** The seller objects assigned to this route (for names / map markers). */
+  sellers: Seller[];
   /** Average monthly ticket (Bs) across the route's clients. */
   avgTicket: number;
   /** Sum of single-visit sales (Bs) across the route's clients. */
@@ -50,6 +52,7 @@ export function computeRoutesMetrics(
   allBlocks: Block[],
 ): RoutesMetrics {
   // Sellers assigned to each route.
+  const sellerByCode = new Map<number, Seller>(sellers.map((s) => [s.code, s]));
   const sellersByRoute = new Map<string, Set<number>>();
   for (const s of sellers) {
     for (const a of s.routeAssignments) {
@@ -66,11 +69,15 @@ export function computeRoutesMetrics(
       ? Math.round(inside.reduce((a, c) => a + c.ticketPromedio, 0) / inside.length)
       : 0;
     const totalDrop = inside.reduce((a, c) => a + c.dropSize, 0);
+    const routeSellers = [...(sellersByRoute.get(route.id) ?? [])]
+      .map((code) => sellerByCode.get(code))
+      .filter((s): s is Seller => !!s);
     return {
       route,
       blocks,
       clientCount: inside.length,
-      sellerCount: sellersByRoute.get(route.id)?.size ?? 0,
+      sellerCount: routeSellers.length,
+      sellers: routeSellers,
       avgTicket,
       totalDrop,
     };
