@@ -392,6 +392,8 @@ export interface ClientTask {
   /** Whether answering the task is mandatory. */
   required: boolean;
   status: TaskStatus;
+  /** Optional deadline (YYYY-MM-DD). */
+  dueDate?: string;
   /** "all" = every client; "some" = only `clientIds`. */
   assignScope: TaskAssignScope;
   /** Target client ids when assignScope === "some". */
@@ -410,6 +412,7 @@ export interface ClientTaskInput {
   order: number;
   required: boolean;
   status?: TaskStatus;
+  dueDate?: string;
   assignScope: TaskAssignScope;
   clientIds: string[];
 }

@@ -40,6 +40,7 @@ const EMPTY_DEFAULTS: ClientTaskFormValues = {
   order: 1,
   required: false,
   status: "active",
+  dueDate: "",
   assignScope: "all",
   clientIds: [],
 };
@@ -99,6 +100,7 @@ export function ClientTaskFormDialog({
         order: task.order,
         required: task.required,
         status: task.status,
+        dueDate: task.dueDate ?? "",
         assignScope: task.assignScope,
         clientIds: task.clientIds,
       });
@@ -114,6 +116,7 @@ export function ClientTaskFormDialog({
   const color = watch("color");
   const order = watch("order");
   const required = watch("required");
+  const dueDate = watch("dueDate");
 
   const onSubmit = async (values: ClientTaskFormValues) => {
     const input: ClientTaskInput = { ...values };
@@ -240,6 +243,23 @@ export function ClientTaskFormDialog({
                   )}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="task-due-date">Fecha límite</Label>
+                <Controller
+                  control={control}
+                  name="dueDate"
+                  render={({ field }) => (
+                    <Input
+                      id="task-due-date"
+                      type="date"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+                <FieldError message={errors.dueDate?.message} />
+              </div>
             </div>
 
             {type === "checklist" && (
@@ -267,6 +287,7 @@ export function ClientTaskFormDialog({
               color={color}
               order={order}
               required={required}
+              dueDate={dueDate}
             />
           </div>
         </form>

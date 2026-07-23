@@ -13,6 +13,7 @@ export const clientTaskSchema = z
     order: z.number().min(1, "El orden debe ser al menos 1"),
     required: z.boolean(),
     status: z.enum(["active", "inactive"]),
+    dueDate: z.string().optional().default(""),
     assignScope: z.enum(["all", "some"]),
     clientIds: z.array(z.string()).default([]),
   })

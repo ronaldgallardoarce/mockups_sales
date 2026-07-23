@@ -357,6 +357,13 @@ function buildClientTasks(): ClientTask[] {
       }
     }
     const created = new Date(2026, Math.floor(rand() * 6), Math.floor(between(1, 27)));
+    // Roughly half the tasks carry a deadline a few days/weeks after creation.
+    const dueDate =
+      rand() < 0.55
+        ? new Date(created.getTime() + Math.floor(between(3, 45)) * 86_400_000)
+            .toISOString()
+            .slice(0, 10)
+        : undefined;
     tasks.push({
       id: i + 1,
       name: base.name,
@@ -367,6 +374,7 @@ function buildClientTasks(): ClientTask[] {
       order: i + 1,
       required: rand() < 0.6,
       status: rand() < 0.8 ? "active" : "inactive",
+      dueDate,
       assignScope: scopeAll ? "all" : "some",
       clientIds,
       createdAt: created.toISOString(),
