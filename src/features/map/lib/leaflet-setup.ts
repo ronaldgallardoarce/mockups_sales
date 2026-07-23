@@ -36,6 +36,24 @@ export function highlightPinIcon(color: string) {
   });
 }
 
+/**
+ * Seller marker — a circular person badge tinted by the route color, with an
+ * optional count badge when more than one seller attends the route.
+ */
+export function sellerPinIcon(color: string, count = 1) {
+  // person-standing (lucide) — a clear standing person, reads as a seller.
+  const person = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><path d="m9 20 3-6 3 6"/><path d="m6 8 6 2 6-2"/><path d="M12 10v4"/></svg>`;
+  const badge = count > 1 ? `<span class="seller-pin-count">${count}</span>` : "";
+  return L.divIcon({
+    className: "",
+    html: `<span class="seller-pin" style="--seller-color:${color}">${person}${badge}</span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -18],
+    tooltipAnchor: [0, -16],
+  });
+}
+
 /** Cluster bubble: a circle badge tinted by the dominant channel color. */
 export function clusterIcon(count: number, color: string) {
   const size = count < 10 ? 34 : count < 50 ? 40 : 48;

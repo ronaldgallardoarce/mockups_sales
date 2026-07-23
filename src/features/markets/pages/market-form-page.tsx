@@ -120,7 +120,12 @@ export function MarketFormPage() {
         <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start">
           <div className="flex-1 space-y-1.5">
             <Label htmlFor="name">Nombre del mercado</Label>
-            <Input id="name" placeholder="Ej. Mercado Central" {...register("name")} />
+            <Input
+              id="name"
+              placeholder="Ej. Mercado Central"
+              {...register("name")}
+              onChange={(e) => setValue("name", e.target.value.toUpperCase(), { shouldValidate: true, shouldDirty: true })}
+            />
             <FieldError message={errors.name?.message} />
           </div>
           <div className="space-y-1.5 sm:w-60">

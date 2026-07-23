@@ -25,6 +25,11 @@ const CITY_FILTER_OPTIONS = [
   ...CITIES.map((c) => ({ value: c.name, label: c.name })),
 ];
 
+/** First-two-word initials of a seller name, e.g. "Ana María López" → "AM". */
+function sellerInitials(name: string) {
+  return name.split(" ").slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+}
+
 function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3">
@@ -222,21 +227,21 @@ export function RoutesMapPage() {
                   </div>
                 </div>
 
-                <ul className="flex-1 space-y-0.5 overflow-y-auto p-2">
+                <ul className="flex-1 space-y-2 overflow-y-auto p-2">
                   {listRoutes.length === 0 ? (
                     <li className="py-8 text-center text-xs text-muted-foreground">Sin coincidencias.</li>
                   ) : (
-                    listRoutes.map(({ route, clientCount, sellerCount, avgTicket, totalDrop }) => {
+                    listRoutes.map(({ route, clientCount, sellerCount, sellers, avgTicket, totalDrop }) => {
                       const isSelected = selected.has(route.id);
                       return (
-                        <li key={route.id}>
+                        <li
+                          key={route.id}
+                          className="overflow-hidden rounded-lg border bg-card shadow-sm transition-colors"
+                        >
                           <button
                             type="button"
                             onClick={() => toggle(route.id)}
-                            className={cn(
-                              "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
-                              isSelected ? "bg-primary/10" : "hover:bg-accent",
-                            )}
+                            className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-accent/50"
                           >
                             <span
                               className={cn(
@@ -258,6 +263,32 @@ export function RoutesMapPage() {
                               </div>
                             </div>
                           </button>
+
+                          {/* Expanded on selection — sellers attending this route */}
+                          {isSelected && (
+                            <div className="space-y-1 border-t px-2 pb-2 pt-1.5">
+                              <span className="flex items-center gap-1 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <Users className="h-3 w-3" /> Vendedores
+                              </span>
+                              {sellers.length === 0 ? (
+                                <p className="py-1 text-center text-[11px] italic text-muted-foreground">
+                                  Sin vendedor asignado
+                                </p>
+                              ) : (
+                                sellers.map((s) => (
+                                  <div
+                                    key={s.code}
+                                    className="flex items-center gap-1.5 rounded-md border bg-card px-1.5 py-1 shadow-sm"
+                                  >
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
+                                      {sellerInitials(s.name)}
+                                    </span>
+                                    <span className="min-w-0 flex-1 truncate text-xs font-medium">{s.name}</span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
                         </li>
                       );
                     })
@@ -272,6 +303,7 @@ export function RoutesMapPage() {
                 routeMetrics={routeMetrics}
                 clientMetrics={clientMetrics}
                 fullscreenTargetRef={mapAreaRef}
+                showSellers={selected.size > 0}
               />
             </div>
           </div>

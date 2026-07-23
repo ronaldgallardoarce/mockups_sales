@@ -5,10 +5,32 @@ import type { Block, LatLng } from "@/types";
 import { BaseMap } from "@/features/map/components/base-map";
 import { FitBounds } from "@/features/map/components/fit-bounds";
 import { channelColor, getChannel, getSubcanal } from "@/data/channels";
-import { clientPinIcon } from "@/features/map/lib/leaflet-setup";
+import { clientPinIcon, sellerPinIcon } from "@/features/map/lib/leaflet-setup";
 import { pointInPolygon } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 import { bs, type ClientMetric, type RouteMetric } from "../lib/route-metrics";
+
+/** First-two-word initials of a seller name, e.g. "Ana María López" → "AM". */
+function sellerInitials(name: string) {
+  return name.split(" ").slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+}
+
+/** Geometric center of a single manzano — guaranteed to sit inside it. */
+function blockCentroid(block: Block): LatLng {
+  const p = block.polygon;
+  const lat = p.reduce((a, x) => a + x[0], 0) / p.length;
+  const lng = p.reduce((a, x) => a + x[1], 0) / p.length;
+  return [lat, lng];
+}
+
+/** Overall center across all of a route's manzanos (for ranking, not placement). */
+function routeCentroid(rm: RouteMetric): LatLng | null {
+  const pts = rm.blocks.flatMap((b) => b.polygon);
+  if (pts.length === 0) return null;
+  const lat = pts.reduce((a, p) => a + p[0], 0) / pts.length;
+  const lng = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+  return [lat, lng];
+}
 
 /** Amber, used to flag a manzano shared by more than one route. */
 const SHARED_COLOR = "#f59e0b";
@@ -17,10 +39,48 @@ interface RoutesMetricsMapProps {
   routeMetrics: RouteMetric[];
   clientMetrics: ClientMetric[];
   fullscreenTargetRef?: React.RefObject<HTMLElement>;
+  /** Show a seller (person) marker per route — used when a route is selected. */
+  showSellers?: boolean;
 }
 
 /** Map of route polygons with per-route and per-client sales/seller metrics. */
-export function RoutesMetricsMap({ routeMetrics, clientMetrics, fullscreenTargetRef }: RoutesMetricsMapProps) {
+export function RoutesMetricsMap({ routeMetrics, clientMetrics, fullscreenTargetRef, showSellers = false }: RoutesMetricsMapProps) {
+  // Seller markers: one per route with sellers, anchored inside one of the
+  // route's manzanos and spread apart so markers of different selected routes
+  // don't stack on top of each other.
+  const sellerMarkers = useMemo(() => {
+    if (!showSellers) return [];
+    const withSellers = routeMetrics.filter((rm) => rm.sellers.length > 0 && rm.blocks.length > 0);
+
+    // How many selected routes include each manzano — lets us prefer a manzano
+    // unique to a route so its marker naturally lands away from the others.
+    const blockUse = new Map<string, number>();
+    for (const rm of withSellers) for (const b of rm.blocks) blockUse.set(b.id, (blockUse.get(b.id) ?? 0) + 1);
+
+    const dist = (a: LatLng, b: LatLng) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const TOO_CLOSE = 0.0006; // ~60 m: closer than this, two markers would overlap
+    const NUDGE = 0.0009;
+    const placed: LatLng[] = [];
+
+    return withSellers.map((rm) => {
+      const rc = routeCentroid(rm)!; // non-null: rm.blocks is non-empty
+      // Prefer a manzano unique to this route; among candidates, the one whose
+      // center is closest to the route's overall center (keeps it central).
+      const unique = rm.blocks.filter((b) => (blockUse.get(b.id) ?? 0) === 1);
+      const candidates = (unique.length ? unique : rm.blocks).map(blockCentroid);
+      const base = candidates.sort((a, b) => dist(a, rc) - dist(b, rc))[0];
+
+      // Best-effort spread from already-placed markers (golden-angle offsets).
+      let center = base;
+      for (let i = 1; placed.some((p) => dist(p, center) < TOO_CLOSE) && i <= 8; i++) {
+        const ang = (i * 137.5 * Math.PI) / 180;
+        const r = NUDGE * i * 0.6;
+        center = [base[0] + Math.sin(ang) * r, base[1] + Math.cos(ang) * r];
+      }
+      placed.push(center);
+      return { rm, center };
+    });
+  }, [routeMetrics, showSellers]);
   // Group by manzano: a block can belong to several routes, so we draw it once
   // and list every route that shares it (instead of stacking overlapping polygons).
   // Ticket/drop are computed at the manzano level — over the clients inside it.
@@ -121,6 +181,32 @@ export function RoutesMetricsMap({ routeMetrics, clientMetrics, fullscreenTarget
             </Marker>
           );
         })}
+
+        {sellerMarkers.map(({ rm, center }) => (
+          <Marker key={`seller-${rm.route.id}`} position={center} icon={sellerPinIcon(rm.route.color, rm.sellers.length)}>
+            <Popup>
+              <div className="space-y-1">
+                <p className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: rm.route.color }}>
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: rm.route.color }} />
+                  {rm.route.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {rm.sellers.length} {rm.sellers.length === 1 ? "vendedor" : "vendedores"} · {rm.clientCount} clientes
+                </p>
+                <ul className="space-y-1 border-t pt-1.5 text-xs">
+                  {rm.sellers.map((s) => (
+                    <li key={s.code} className="flex items-center gap-1.5">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
+                        {sellerInitials(s.name)}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{s.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
         <FitBounds points={fitPoints} />
       </BaseMap>

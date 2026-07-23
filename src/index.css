@@ -80,9 +80,26 @@
   * {
     @apply border-border;
   }
-  /* Slightly reduced global scale (default 16px) — shrinks rem-based sizing. */
+  /* Responsive global scale: every rem-based size (fonts, spacing, heights,
+     gaps) shrinks or grows with the root font-size, so the whole UI scales as
+     one instead of just wrapping. Smaller screens get a smaller scale. */
   html {
-    font-size: 15px;
+    font-size: 12px;
+  }
+  @media (min-width: 768px) {
+    html {
+      font-size: 12.5px;
+    }
+  }
+  @media (min-width: 1280px) {
+    html {
+      font-size: 13px;
+    }
+  }
+  @media (min-width: 1536px) {
+    html {
+      font-size: 13.5px;
+    }
   }
   body {
     @apply bg-background text-foreground;
@@ -135,6 +152,46 @@
 .marker-cluster-badge {
   background: transparent;
   border: none;
+}
+
+/* Seller marker — circular person badge tinted by the route color */
+.seller-pin {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: var(--seller-color, hsl(var(--primary)));
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+}
+.seller-pin svg {
+  width: 16px;
+  height: 16px;
+  color: #fff;
+}
+.seller-pin-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #fff;
+  color: var(--seller-color, hsl(var(--primary)));
+  border: 1px solid var(--seller-color, hsl(var(--primary)));
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.dark .seller-pin {
+  border-color: hsl(240 8% 12%);
 }
 
 /* Client marker pin */

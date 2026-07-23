@@ -19,13 +19,27 @@ interface BaseMapProps {
   fullscreenTargetRef?: React.RefObject<HTMLElement>;
 }
 
-/** Recomputes the Leaflet canvas size after entering/leaving fullscreen. */
-function FullscreenResizer() {
+/**
+ * Keeps the Leaflet canvas in sync with its container size. Leaflet only sizes
+ * its tile layout once (on mount), so any later resize of the wrapper — hiding
+ * a side panel, a window resize, entering/leaving fullscreen — leaves a gray,
+ * un-rendered gap until we tell it to recompute. A ResizeObserver covers every
+ * one of those cases without listening for each event individually.
+ */
+function AutoResizer() {
   const map = useMap();
   useEffect(() => {
-    const onChange = () => window.setTimeout(() => map.invalidateSize(), 160);
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
+    const container = map.getContainer();
+    let frame = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => map.invalidateSize());
+    });
+    ro.observe(container);
+    return () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+    };
   }, [map]);
   return null;
 }
@@ -89,7 +103,7 @@ export function BaseMap({
           />
         )}
         {children}
-        <FullscreenResizer />
+        <AutoResizer />
       </MapContainer>
 
       <button

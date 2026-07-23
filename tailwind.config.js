@@ -9,6 +9,12 @@ export default {
       screens: { "2xl": "1400px" },
     },
     extend: {
+      // Custom breakpoint for laptops whose effective CSS width sits just below
+      // Tailwind's `lg` (1024px) — e.g. Windows display scaling at 125%/150%.
+      // Drives the route form's 3-column layout so it doesn't collapse there.
+      screens: {
+        cols: "960px",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

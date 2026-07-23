@@ -123,7 +123,12 @@ export function RouteMacroFormPage() {
         <CardContent className="p-5">
           <div className="space-y-2">
             <Label htmlFor="name">Nombre de la macroruta</Label>
-            <Input id="name" placeholder="Ej. Macro Trinidad Centro" {...register("name")} />
+            <Input
+              id="name"
+              placeholder="Ej. Macro Trinidad Centro"
+              {...register("name")}
+              onChange={(e) => setValue("name", e.target.value.toUpperCase(), { shouldValidate: true, shouldDirty: true })}
+            />
             <FieldError message={errors.name?.message} />
           </div>
         </CardContent>
