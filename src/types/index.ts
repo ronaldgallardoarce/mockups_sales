@@ -310,3 +310,153 @@ export interface Seller {
   /** App-managed route assignments with frequency (not part of the sellers list API). */
   routeAssignments: SellerRouteAssignment[];
 }
+
+// ---- Tareas (Tasks) --------------------------------------------------------
+
+/** Active / inactive — tasks are deactivated (not deleted) from the list. */
+export type TaskStatus = "active" | "inactive";
+
+/** Whom a task is assigned to. */
+export type TaskAssignScope = "all" | "some";
+
+/** Priority of a general task. */
+export type TaskPriority = "baja" | "normal" | "alta" | "urgente";
+
+export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+  baja: "Baja",
+  normal: "Normal",
+  alta: "Alta",
+  urgente: "Urgente",
+};
+
+export const ALL_TASK_PRIORITIES: TaskPriority[] = ["baja", "normal", "alta", "urgente"];
+
+/** Kind of answer a per-client task expects on the field. */
+export type ClientTaskType =
+  | "foto"
+  | "texto"
+  | "checklist"
+  | "calificacion"
+  | "precio_competencia"
+  | "inventario_faltante";
+
+export const CLIENT_TASK_TYPE_LABELS: Record<ClientTaskType, string> = {
+  foto: "Foto",
+  texto: "Texto",
+  checklist: "Checklist",
+  calificacion: "Calificación",
+  precio_competencia: "Precio competencia",
+  inventario_faltante: "Inventario / faltante",
+};
+
+export const ALL_CLIENT_TASK_TYPES: ClientTaskType[] = [
+  "foto",
+  "texto",
+  "checklist",
+  "calificacion",
+  "precio_competencia",
+  "inventario_faltante",
+];
+
+/** Kind of answer a general task expects. */
+export type GeneralTaskResponseType =
+  | "foto"
+  | "texto"
+  | "checklist"
+  | "calificacion"
+  | "toma_precio"
+  | "inventario_faltante";
+
+export const GENERAL_TASK_RESPONSE_TYPE_LABELS: Record<GeneralTaskResponseType, string> = {
+  foto: "Foto",
+  texto: "Texto",
+  checklist: "Checklist",
+  calificacion: "Calificación",
+  toma_precio: "Toma de precio",
+  inventario_faltante: "Inventario / faltante",
+};
+
+export const ALL_GENERAL_TASK_RESPONSE_TYPES: GeneralTaskResponseType[] = [
+  "foto",
+  "texto",
+  "checklist",
+  "calificacion",
+  "toma_precio",
+  "inventario_faltante",
+];
+
+/**
+ * Tarea por cliente — a recurring task shown on a client's card during a visit.
+ * `checklistItems` is only meaningful when `type === "checklist"`.
+ */
+export interface ClientTask {
+  id: number;
+  name: string;
+  description: string;
+  type: ClientTaskType;
+  /** Checklist entries (only used when type === "checklist"). */
+  checklistItems: string[];
+  color: string;
+  /** Position the task takes in the client's task list. */
+  order: number;
+  /** Whether answering the task is mandatory. */
+  required: boolean;
+  status: TaskStatus;
+  /** "all" = every client; "some" = only `clientIds`. */
+  assignScope: TaskAssignScope;
+  /** Target client ids when assignScope === "some". */
+  clientIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload used by create / update per-client task forms. */
+export interface ClientTaskInput {
+  name: string;
+  description: string;
+  type: ClientTaskType;
+  checklistItems: string[];
+  color: string;
+  order: number;
+  required: boolean;
+  status?: TaskStatus;
+  assignScope: TaskAssignScope;
+  clientIds: string[];
+}
+
+/**
+ * Tarea general — a one-off task assigned to sellers, with a priority and an
+ * optional due date. `checklistItems` is only used when responseType === "checklist".
+ */
+export interface GeneralTask {
+  id: number;
+  title: string;
+  description: string;
+  responseType: GeneralTaskResponseType;
+  checklistItems: string[];
+  priority: TaskPriority;
+  color: string;
+  /** Optional deadline (YYYY-MM-DD). */
+  dueDate?: string;
+  status: TaskStatus;
+  /** "all" = every seller; "some" = only `sellerCodes`. */
+  assignScope: TaskAssignScope;
+  /** Target seller codes when assignScope === "some". */
+  sellerCodes: number[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload used by create / update general task forms. */
+export interface GeneralTaskInput {
+  title: string;
+  description: string;
+  responseType: GeneralTaskResponseType;
+  checklistItems: string[];
+  priority: TaskPriority;
+  color: string;
+  dueDate?: string;
+  status?: TaskStatus;
+  assignScope: TaskAssignScope;
+  sellerCodes: number[];
+}
