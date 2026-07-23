@@ -329,8 +329,6 @@ const CLIENT_TASK_NAMES: { name: string; description: string; type: ClientTaskTy
   { name: "Checklist de limpieza", description: "Verifica el estado del punto de venta.", type: "checklist" },
   { name: "Checklist de material POP", description: "Confirma la presencia del material publicitario.", type: "checklist" },
   { name: "Calificación de atención", description: "Califica la atención recibida en el punto.", type: "calificacion" },
-  { name: "Precio de la competencia", description: "Registra los precios de productos de la competencia.", type: "precio_competencia" },
-  { name: "Inventario faltante", description: "Marca los productos agotados en góndola.", type: "inventario_faltante" },
   { name: "Foto de heladera", description: "Foto del estado de la heladera de la marca.", type: "foto" },
   { name: "Checklist de vencimientos", description: "Revisa productos próximos a vencer.", type: "checklist" },
 ];

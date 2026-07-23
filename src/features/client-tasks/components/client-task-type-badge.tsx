@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Camera, ListChecks, PackageX, Star, Tag, Type } from "lucide-react";
+import { Camera, ListChecks, Star, Type } from "lucide-react";
 import type { ClientTaskType } from "@/types";
 import { CLIENT_TASK_TYPE_LABELS } from "@/types";
 import { cn } from "@/lib/utils";
@@ -9,8 +9,6 @@ const TYPE_ICONS: Record<ClientTaskType, LucideIcon> = {
   texto: Type,
   checklist: ListChecks,
   calificacion: Star,
-  precio_competencia: Tag,
-  inventario_faltante: PackageX,
 };
 
 export function ClientTaskTypeBadge({

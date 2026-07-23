@@ -332,21 +332,13 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
 export const ALL_TASK_PRIORITIES: TaskPriority[] = ["baja", "normal", "alta", "urgente"];
 
 /** Kind of answer a per-client task expects on the field. */
-export type ClientTaskType =
-  | "foto"
-  | "texto"
-  | "checklist"
-  | "calificacion"
-  | "precio_competencia"
-  | "inventario_faltante";
+export type ClientTaskType = "foto" | "texto" | "checklist" | "calificacion";
 
 export const CLIENT_TASK_TYPE_LABELS: Record<ClientTaskType, string> = {
   foto: "Foto",
   texto: "Texto",
   checklist: "Checklist",
   calificacion: "Calificación",
-  precio_competencia: "Precio competencia",
-  inventario_faltante: "Inventario / faltante",
 };
 
 export const ALL_CLIENT_TASK_TYPES: ClientTaskType[] = [
@@ -354,8 +346,6 @@ export const ALL_CLIENT_TASK_TYPES: ClientTaskType[] = [
   "texto",
   "checklist",
   "calificacion",
-  "precio_competencia",
-  "inventario_faltante",
 ];
 
 /** Kind of answer a general task expects. */

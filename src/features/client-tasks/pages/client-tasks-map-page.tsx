@@ -1,21 +1,19 @@
-import { useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Asterisk,
   Check,
   CheckCircle2,
   ClipboardList,
   FilterX,
-  Layers,
+  Pencil,
   Plus,
-  Route as RouteIcon,
   Search,
   UserMinus,
   Users,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Block, ClientTask } from "@/types";
+import type { Block, ClientTask, Market } from "@/types";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
@@ -27,6 +25,7 @@ import { useClientTasks } from "@/hooks/use-client-tasks";
 import { useRoutes } from "@/hooks/use-routes";
 import { useClients } from "@/hooks/use-clients";
 import { useChannels } from "@/hooks/use-channels";
+import { useMarkets } from "@/hooks/use-markets";
 import { useBlocksStore } from "@/stores/blocks-store";
 import { CITIES } from "@/data/locations";
 import { ChannelMultiSelect } from "@/features/routes/components/channel-multiselect";
@@ -34,6 +33,8 @@ import { ClientTaskTypeBadge } from "../components/client-task-type-badge";
 import { ClientTaskMap } from "../components/client-task-map";
 import { AssignClientsToTasksDialog } from "../components/assign-clients-to-tasks-dialog";
 import { UnassignClientsSheet } from "../components/unassign-clients-sheet";
+import { ClientTaskFormDialog } from "../components/client-task-form-dialog";
+import { SelectionTabs } from "../components/selection-tabs";
 import { clientsInBlocks } from "../lib/task-selection";
 
 const CITY_FILTER_OPTIONS = [
@@ -60,6 +61,7 @@ export function ClientTasksMapPage() {
   const { data: routes = [] } = useRoutes();
   const { data: clients = [] } = useClients();
   const { data: channels = [] } = useChannels();
+  const { data: markets = [] } = useMarkets();
   const blocks = useBlocksStore((s) => s.blocks);
 
   const [taskSearch, setTaskSearch] = useState("");
@@ -70,14 +72,21 @@ export function ClientTasksMapPage() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set());
   const [selectedRouteIds, setSelectedRouteIds] = useState<Set<string>>(new Set());
   const [selectedBlockIds, setSelectedBlockIds] = useState<Set<string>>(new Set());
+  const [selectedMarketIds, setSelectedMarketIds] = useState<Set<string>>(new Set());
   const [resolvedClientIds, setResolvedClientIds] = useState<string[]>([]);
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [unassignTask, setUnassignTask] = useState<ClientTask | null>(null);
+  // `null` = closed, "new" = create mode, a task = edit mode.
+  const [formTask, setFormTask] = useState<ClientTask | "new" | null>(null);
 
   const mapWrapperRef = useRef<HTMLDivElement>(null);
 
   const hasFilters = cityFilter !== "" || channelFilter.length > 0;
+
+  // Markets belong to the traditional channel — only offer the tab when it's in the filter.
+  const tradicionalId = channels.find((c) => c.name === "TRADICIONAL")?.id;
+  const showMarketsTab = !!tradicionalId && channelFilter.includes(tradicionalId);
 
   // City + channel filters scope the routes shown on the map and in the list.
   const filteredRoutes = useMemo(
@@ -122,6 +131,7 @@ export function ClientTasksMapPage() {
 
   const activeCount = tasks.filter((t) => t.status === "active").length;
   const requiredCount = tasks.filter((t) => t.required).length;
+  const nextOrder = tasks.reduce((max, t) => Math.max(max, t.order), 0) + 1;
 
   const toggleTask = (id: number) =>
     setSelectedTaskIds((prev) => {
@@ -146,6 +156,62 @@ export function ClientTasksMapPage() {
       else next.add(id);
       return next;
     });
+
+  // Add or remove a batch of routes at once (used by the Empleados tab).
+  const setRoutesSelected = (ids: string[], selected: boolean) =>
+    setSelectedRouteIds((prev) => {
+      const next = new Set(prev);
+      if (selected) ids.forEach((id) => next.add(id));
+      else ids.forEach((id) => next.delete(id));
+      return next;
+    });
+
+  // Selecting a market contributes its manzanos; deselecting removes them unless
+  // another still-selected market also covers that manzano.
+  const toggleMarket = (market: Market) => {
+    const willSelect = !selectedMarketIds.has(market.id);
+    setSelectedMarketIds((prev) => {
+      const next = new Set(prev);
+      if (willSelect) next.add(market.id);
+      else next.delete(market.id);
+      return next;
+    });
+    setSelectedBlockIds((prev) => {
+      const next = new Set(prev);
+      if (willSelect) {
+        market.blockIds.forEach((id) => next.add(id));
+      } else {
+        const keep = new Set<string>();
+        for (const m of markets) {
+          if (m.id !== market.id && selectedMarketIds.has(m.id))
+            m.blockIds.forEach((id) => keep.add(id));
+        }
+        market.blockIds.forEach((id) => {
+          if (!keep.has(id)) next.delete(id);
+        });
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedRouteIds(new Set());
+    setSelectedBlockIds(new Set());
+    setSelectedMarketIds(new Set());
+  };
+
+  // If TRADICIONAL leaves the channel filter, drop any market-contributed manzanos.
+  useEffect(() => {
+    if (showMarketsTab || selectedMarketIds.size === 0) return;
+    setSelectedBlockIds((prev) => {
+      const next = new Set(prev);
+      for (const m of markets) {
+        if (selectedMarketIds.has(m.id)) m.blockIds.forEach((id) => next.delete(id));
+      }
+      return next;
+    });
+    setSelectedMarketIds(new Set());
+  }, [showMarketsTab, selectedMarketIds, markets]);
 
   const canAssign = selectedTaskIds.size > 0 && resolvedClientIds.length > 0;
 
@@ -229,7 +295,7 @@ export function ClientTasksMapPage() {
                       size="sm"
                       variant="outline"
                       className="h-7 px-2 text-xs"
-                      onClick={() => toast.info("Creación de tareas próximamente")}
+                      onClick={() => setFormTask("new")}
                     >
                       <Plus className="h-3.5 w-3.5" /> Nueva tarea
                     </Button>
@@ -285,7 +351,14 @@ export function ClientTasksMapPage() {
                             </div>
                           </div>
                         </button>
-                        <div className="border-t px-2 py-1.5">
+                        <div className="flex items-center justify-between border-t px-2 py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setFormTask(task)}
+                            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            <Pencil className="h-3.5 w-3.5" /> Editar
+                          </button>
                           <button
                             type="button"
                             onClick={() => setUnassignTask(task)}
@@ -315,83 +388,22 @@ export function ClientTasksMapPage() {
               />
             </div>
 
-            {/* RIGHT — routes list (drives the map selection) */}
-            <div className="flex max-h-[70vh] w-full flex-col overflow-hidden rounded-xl border bg-card xl:h-full xl:max-h-none xl:w-80 xl:shrink-0">
-              <div className="space-y-2 border-b p-3">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-sm font-medium">
-                    <RouteIcon className="h-4 w-4 text-muted-foreground" />
-                    Rutas{" "}
-                    {selectedRouteIds.size > 0 && (
-                      <span className="text-muted-foreground">({selectedRouteIds.size})</span>
-                    )}
-                  </span>
-                  {(selectedRouteIds.size > 0 || selectedBlockIds.size > 0) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedRouteIds(new Set());
-                        setSelectedBlockIds(new Set());
-                      }}
-                      className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <X className="h-3 w-3" /> Limpiar
-                    </button>
-                  )}
-                </div>
-                {selectedBlockIds.size > 0 && (
-                  <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Layers className="h-3 w-3" /> {selectedBlockIds.size} manzano(s) seleccionado(s) en el mapa
-                  </p>
-                )}
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={routeSearch}
-                    onChange={(e) => setRouteSearch(e.target.value)}
-                    placeholder="Buscar ruta…"
-                    className="h-8 pl-8 text-sm"
-                  />
-                </div>
-              </div>
-
-              <ul className="flex-1 space-y-2 overflow-y-auto p-2">
-                {routeStats.length === 0 ? (
-                  <li className="py-8 text-center text-xs text-muted-foreground">
-                    No hay rutas con los filtros actuales.
-                  </li>
-                ) : (
-                  routeStats.map(({ route, clientCount, blockCount }) => {
-                    const isSelected = selectedRouteIds.has(route.id);
-                    return (
-                      <li key={route.id} className="overflow-hidden rounded-lg border bg-card shadow-sm">
-                        <button
-                          type="button"
-                          onClick={() => toggleRoute(route.id)}
-                          className="flex w-full items-start gap-2.5 px-2.5 py-2 text-left text-sm transition-colors hover:bg-accent/50"
-                        >
-                          <span
-                            className={cn(
-                              "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                              isSelected ? "border-primary bg-primary text-primary-foreground" : "border-input",
-                            )}
-                          >
-                            {isSelected && <Check className="h-3 w-3" />}
-                          </span>
-                          <ColorDot color={route.color} className="mt-1 h-3 w-3" />
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate font-medium">{route.name}</div>
-                            <div className="text-[11px] text-muted-foreground">
-                              {clientCount} clientes · {blockCount} manzanos
-                            </div>
-                          </div>
-                        </button>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>
+            {/* RIGHT — selection tabs (routes / employees / markets) drive the map */}
+            <SelectionTabs
+              routeStats={routeStats}
+              routeSearch={routeSearch}
+              onRouteSearchChange={setRouteSearch}
+              filteredRoutes={filteredRoutes}
+              selectedRouteIds={selectedRouteIds}
+              onToggleRoute={toggleRoute}
+              onSetRoutesSelected={setRoutesSelected}
+              selectedBlockIds={selectedBlockIds}
+              onClearAll={clearSelection}
+              markets={markets}
+              selectedMarketIds={selectedMarketIds}
+              onToggleMarket={toggleMarket}
+              showMarketsTab={showMarketsTab}
+            />
           </div>
         </div>
       )}
@@ -408,6 +420,13 @@ export function ClientTasksMapPage() {
         task={unassignTask}
         open={!!unassignTask}
         onOpenChange={(o) => !o && setUnassignTask(null)}
+      />
+
+      <ClientTaskFormDialog
+        open={formTask !== null}
+        onOpenChange={(o) => !o && setFormTask(null)}
+        task={formTask === "new" ? null : formTask}
+        nextOrder={nextOrder}
       />
     </>
   );
