@@ -1,4 +1,4 @@
-import type { Block, Client, DayCode, FrequencyType, MacroRouteRef, Market, Polygon, Route, RouteFrequency, RouteMacro, Seller, SellerRouteAssignment, WeekPosition } from "@/types";
+import type { Block, Client, ClientTask, ClientTaskType, DayCode, FrequencyType, GeneralTask, GeneralTaskResponseType, MacroRouteRef, Market, Polygon, Route, RouteFrequency, RouteMacro, Seller, SellerRouteAssignment, TaskPriority, WeekPosition } from "@/types";
 import { CITIES, DEPARTMENT_NAME } from "./locations";
 import { numId, seededRandom } from "@/lib/utils";
 import { pointInPolygon } from "@/lib/geo";
@@ -320,3 +320,117 @@ function buildSellers(): Seller[] {
 }
 
 export const SEED_SELLERS: Seller[] = buildSellers();
+
+// ---- Tareas por cliente ----------------------------------------------------
+const CLIENT_TASK_NAMES: { name: string; description: string; type: ClientTaskType }[] = [
+  { name: "Foto de fachada", description: "Toma una foto del frente del local para validar la visita.", type: "foto" },
+  { name: "Foto de exhibición", description: "Registra cómo quedó la exhibición de productos.", type: "foto" },
+  { name: "Observaciones del punto", description: "Anota cualquier comentario relevante del cliente.", type: "texto" },
+  { name: "Checklist de limpieza", description: "Verifica el estado del punto de venta.", type: "checklist" },
+  { name: "Checklist de material POP", description: "Confirma la presencia del material publicitario.", type: "checklist" },
+  { name: "Calificación de atención", description: "Califica la atención recibida en el punto.", type: "calificacion" },
+  { name: "Precio de la competencia", description: "Registra los precios de productos de la competencia.", type: "precio_competencia" },
+  { name: "Inventario faltante", description: "Marca los productos agotados en góndola.", type: "inventario_faltante" },
+  { name: "Foto de heladera", description: "Foto del estado de la heladera de la marca.", type: "foto" },
+  { name: "Checklist de vencimientos", description: "Revisa productos próximos a vencer.", type: "checklist" },
+];
+const CLIENT_TASK_COLORS = ["#264bc5", "#0ea5e9", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6", "#f97316"];
+const CHECKLIST_SAMPLES = [
+  "Piso limpio", "Góndola ordenada", "Precios visibles", "Sin productos vencidos",
+  "Material POP colocado", "Heladera funcionando", "Stock de seguridad", "Cartelería vigente",
+];
+
+function buildChecklistItems(): string[] {
+  const count = 2 + Math.floor(rand() * 3); // 2..4 items
+  return [...CHECKLIST_SAMPLES].sort(() => rand() - 0.5).slice(0, count);
+}
+
+function buildClientTasks(): ClientTask[] {
+  const tasks: ClientTask[] = [];
+  for (let i = 0; i < 22; i++) {
+    const base = CLIENT_TASK_NAMES[i % CLIENT_TASK_NAMES.length];
+    const scopeAll = rand() < 0.5;
+    const clientIds: string[] = [];
+    if (!scopeAll) {
+      const count = 1 + Math.floor(rand() * 5); // 1..5 clients
+      for (let k = 0; k < count; k++) {
+        const c = pick(SEED_CLIENTS);
+        if (!clientIds.includes(c.id)) clientIds.push(c.id);
+      }
+    }
+    const created = new Date(2026, Math.floor(rand() * 6), Math.floor(between(1, 27)));
+    tasks.push({
+      id: i + 1,
+      name: base.name,
+      description: base.description,
+      type: base.type,
+      checklistItems: base.type === "checklist" ? buildChecklistItems() : [],
+      color: CLIENT_TASK_COLORS[i % CLIENT_TASK_COLORS.length],
+      order: i + 1,
+      required: rand() < 0.6,
+      status: rand() < 0.8 ? "active" : "inactive",
+      assignScope: scopeAll ? "all" : "some",
+      clientIds,
+      createdAt: created.toISOString(),
+      updatedAt: created.toISOString(),
+    });
+  }
+  return tasks;
+}
+
+export const SEED_CLIENT_TASKS: ClientTask[] = buildClientTasks();
+
+// ---- Tareas generales ------------------------------------------------------
+const GENERAL_TASK_ITEMS: { title: string; description: string; responseType: GeneralTaskResponseType }[] = [
+  { title: "Relevamiento de precios", description: "Tomar precios de la competencia en la zona asignada.", responseType: "toma_precio" },
+  { title: "Censo de clientes nuevos", description: "Registrar comercios nuevos no cargados en el sistema.", responseType: "texto" },
+  { title: "Foto de puntos de venta", description: "Enviar fotos de los principales puntos de venta.", responseType: "foto" },
+  { title: "Checklist de apertura", description: "Completar el checklist de apertura de ruta.", responseType: "checklist" },
+  { title: "Calificación de rutas", description: "Calificar el estado general de la ruta.", responseType: "calificacion" },
+  { title: "Reporte de faltantes", description: "Reportar productos faltantes en la zona.", responseType: "inventario_faltante" },
+  { title: "Verificación de material POP", description: "Confirmar la colocación de material publicitario.", responseType: "checklist" },
+  { title: "Encuesta de satisfacción", description: "Aplicar encuesta breve a clientes clave.", responseType: "texto" },
+  { title: "Toma de precios lácteos", description: "Relevar precios de la categoría lácteos.", responseType: "toma_precio" },
+  { title: "Foto de quiebres de stock", description: "Fotografiar góndolas con quiebre de stock.", responseType: "foto" },
+];
+const GENERAL_TASK_COLORS = ["#264bc5", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6", "#0ea5e9", "#ec4899", "#14b8a6"];
+const GENERAL_TASK_PRIORITIES: TaskPriority[] = ["baja", "normal", "alta", "urgente"];
+
+function buildGeneralTasks(): GeneralTask[] {
+  const tasks: GeneralTask[] = [];
+  for (let i = 0; i < 20; i++) {
+    const base = GENERAL_TASK_ITEMS[i % GENERAL_TASK_ITEMS.length];
+    const scopeAll = rand() < 0.45;
+    const sellerCodes: number[] = [];
+    if (!scopeAll) {
+      const count = 1 + Math.floor(rand() * 4); // 1..4 sellers
+      for (let k = 0; k < count; k++) {
+        const s = pick(SEED_SELLERS);
+        if (!sellerCodes.includes(s.code)) sellerCodes.push(s.code);
+      }
+    }
+    const created = new Date(2026, Math.floor(rand() * 6), Math.floor(between(1, 27)));
+    // ~60% carry an optional due date a few weeks out.
+    const hasDue = rand() < 0.6;
+    const due = new Date(created);
+    due.setDate(due.getDate() + 7 + Math.floor(rand() * 30));
+    tasks.push({
+      id: i + 1,
+      title: base.title,
+      description: base.description,
+      responseType: base.responseType,
+      checklistItems: base.responseType === "checklist" ? buildChecklistItems() : [],
+      priority: GENERAL_TASK_PRIORITIES[Math.floor(rand() * GENERAL_TASK_PRIORITIES.length)],
+      color: GENERAL_TASK_COLORS[i % GENERAL_TASK_COLORS.length],
+      dueDate: hasDue ? due.toISOString().slice(0, 10) : undefined,
+      status: rand() < 0.8 ? "active" : "inactive",
+      assignScope: scopeAll ? "all" : "some",
+      sellerCodes,
+      createdAt: created.toISOString(),
+      updatedAt: created.toISOString(),
+    });
+  }
+  return tasks;
+}
+
+export const SEED_GENERAL_TASKS: GeneralTask[] = buildGeneralTasks();
