@@ -1,5 +1,5 @@
-import type { ClientTask, ClientTaskInput, ClientTaskType, TaskStatus } from "@/types";
-import { SEED_CLIENT_TASKS } from "@/data/seed";
+import type { ClientTask, ClientTaskInput, ClientTaskType, CompletedClientTask, TaskStatus } from "@/types";
+import { SEED_CLIENT_TASKS, SEED_CLIENT_TASK_COMPLETIONS } from "@/data/seed";
 import { delay } from "@/lib/utils";
 import type { Paginated } from "./routes-service";
 
@@ -16,6 +16,7 @@ export interface ListClientTasksParams {
  * Kept module level so mutations survive navigation within the session.
  */
 let CLIENT_TASKS: ClientTask[] = [...SEED_CLIENT_TASKS];
+const COMPLETIONS: CompletedClientTask[] = [...SEED_CLIENT_TASK_COMPLETIONS];
 
 export const clientTasksService = {
   list: (): Promise<ClientTask[]> => delay([...CLIENT_TASKS], 500),
@@ -46,6 +47,13 @@ export const clientTasksService = {
 
   get: (id: number): Promise<ClientTask | undefined> =>
     delay(CLIENT_TASKS.find((t) => t.id === id), 300),
+
+  /** Every completion (visit response) recorded for a single task. */
+  listCompletionsByTask: (taskId: number): Promise<CompletedClientTask[]> =>
+    delay(
+      COMPLETIONS.filter((c) => c.visitTaskId === taskId),
+      450,
+    ),
 
   create: (input: ClientTaskInput): Promise<ClientTask> => {
     const now = new Date().toISOString();

@@ -33,6 +33,7 @@ import { ClientTaskTypeBadge } from "../components/client-task-type-badge";
 import { ClientTaskMap } from "../components/client-task-map";
 import { AssignClientsToTasksDialog } from "../components/assign-clients-to-tasks-dialog";
 import { UnassignClientsSheet } from "../components/unassign-clients-sheet";
+import { CompletedTasksSheet } from "../components/completed-tasks-sheet";
 import { ClientTaskFormDialog } from "../components/client-task-form-dialog";
 import { SelectionTabs } from "../components/selection-tabs";
 import { clientsInBlocks } from "../lib/task-selection";
@@ -79,6 +80,7 @@ export function ClientTasksMapPage() {
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [unassignTask, setUnassignTask] = useState<ClientTask | null>(null);
+  const [completedTask, setCompletedTask] = useState<ClientTask | null>(null);
   // `null` = closed, "new" = create mode, a task = edit mode.
   const [formTask, setFormTask] = useState<ClientTask | "new" | null>(null);
 
@@ -385,7 +387,7 @@ export function ClientTasksMapPage() {
                             </div>
                           </div>
                         </button>
-                        <div className="flex items-center justify-between border-t px-2 py-1.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-2 py-1.5">
                           <button
                             type="button"
                             onClick={() => setFormTask(task)}
@@ -395,8 +397,15 @@ export function ClientTasksMapPage() {
                           </button>
                           <button
                             type="button"
+                            onClick={() => setCompletedTask(task)}
+                            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Completados
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setUnassignTask(task)}
-                            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive"
+                            className="ml-auto flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive"
                           >
                             <UserMinus className="h-3.5 w-3.5" /> Quitar clientes
                           </button>
@@ -457,6 +466,12 @@ export function ClientTasksMapPage() {
         task={unassignTask}
         open={!!unassignTask}
         onOpenChange={(o) => !o && setUnassignTask(null)}
+      />
+
+      <CompletedTasksSheet
+        task={completedTask}
+        open={!!completedTask}
+        onOpenChange={(o) => !o && setCompletedTask(null)}
       />
 
       <ClientTaskFormDialog

@@ -36,6 +36,15 @@ export function useClientTask(id: number | undefined) {
   });
 }
 
+/** Completions (visit responses) recorded for a single task, across employees. */
+export function useClientTaskCompletions(taskId: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.clientTaskCompletions(taskId ?? "none"),
+    queryFn: () => clientTasksService.listCompletionsByTask(taskId as number),
+    enabled: taskId !== undefined,
+  });
+}
+
 export function useCreateClientTask() {
   const qc = useQueryClient();
   return useMutation({

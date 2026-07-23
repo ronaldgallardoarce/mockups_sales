@@ -417,6 +417,40 @@ export interface ClientTaskInput {
   clientIds: string[];
 }
 
+/** A single photo captured while completing a task during a visit. */
+export interface VisitTaskPhoto {
+  id: number;
+  url: string;
+}
+
+/** One checklist entry answered while completing a task. */
+export interface ChecklistAnswer {
+  item: string;
+  checked: boolean;
+}
+
+/**
+ * A completed client-task: the answer an employee (seller) recorded for a task
+ * during a visit to a customer. `visitTaskId` points at the `ClientTask.id`.
+ * Only the field matching the task's `type` is filled; the rest stay null/empty.
+ */
+export interface CompletedClientTask {
+  customerId: number;
+  customerName: string;
+  /** Owner (person) of the customer store. */
+  ownerId: number;
+  ownerName: string;
+  /** Employee (seller) who performed the task. */
+  employeeId: number;
+  employeeName: string;
+  visitId: number;
+  visitTaskId: number;
+  response: string | null;
+  checkListResponse: ChecklistAnswer[] | null;
+  ratingResponse: number | null;
+  visitTaskPhotos: VisitTaskPhoto[];
+}
+
 /**
  * Tarea general — a one-off task assigned to sellers, with a priority and an
  * optional due date. `checklistItems` is only used when responseType === "checklist".
