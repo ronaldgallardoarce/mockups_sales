@@ -108,4 +108,34 @@ export const clientTasksService = {
     CLIENT_TASKS = CLIENT_TASKS.filter((t) => t.id !== id);
     return delay({ id }, 400);
   },
+
+  /**
+   * Assign a set of clients to a task. Forces the task into the "some" scope and
+   * merges the ids into the existing target set (deduplicated).
+   */
+  assignClients: (taskId: number, clientIds: string[]): Promise<ClientTask> => {
+    const now = new Date().toISOString();
+    let updated: ClientTask | undefined;
+    CLIENT_TASKS = CLIENT_TASKS.map((t) => {
+      if (t.id !== taskId) return t;
+      const merged = [...new Set([...t.clientIds, ...clientIds])];
+      updated = { ...t, assignScope: "some", clientIds: merged, updatedAt: now };
+      return updated;
+    });
+    if (!updated) return Promise.reject(new Error("Tarea no encontrada"));
+    return delay(updated, 400);
+  },
+
+  /** Remove a single client from a task's target set. */
+  unassignClient: (taskId: number, clientId: string): Promise<ClientTask> => {
+    const now = new Date().toISOString();
+    let updated: ClientTask | undefined;
+    CLIENT_TASKS = CLIENT_TASKS.map((t) =>
+      t.id !== taskId
+        ? t
+        : (updated = { ...t, clientIds: t.clientIds.filter((id) => id !== clientId), updatedAt: now }),
+    );
+    if (!updated) return Promise.reject(new Error("Tarea no encontrada"));
+    return delay(updated, 300);
+  },
 };
