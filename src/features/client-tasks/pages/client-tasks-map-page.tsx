@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Block, ClientTask, Market } from "@/types";
+import type { Block, ClientTask, LatLng, Market } from "@/types";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
@@ -71,8 +71,10 @@ export function ClientTasksMapPage() {
 
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set());
   const [selectedRouteIds, setSelectedRouteIds] = useState<Set<string>>(new Set());
-  const [selectedBlockIds, setSelectedBlockIds] = useState<Set<string>>(new Set());
   const [selectedMarketIds, setSelectedMarketIds] = useState<Set<string>>(new Set());
+  // Manzanos added by clicking the map, and manzanos carved out of a source.
+  const [manualBlockIds, setManualBlockIds] = useState<Set<string>>(new Set());
+  const [excludedBlockIds, setExcludedBlockIds] = useState<Set<string>>(new Set());
   const [resolvedClientIds, setResolvedClientIds] = useState<string[]>([]);
 
   const [assignOpen, setAssignOpen] = useState(false);
@@ -83,6 +85,15 @@ export function ClientTasksMapPage() {
   const mapWrapperRef = useRef<HTMLDivElement>(null);
 
   const hasFilters = cityFilter !== "" || channelFilter.length > 0;
+
+  // Clients shown on the map: the whole universe, or only the selected channel(s).
+  const visibleClients = useMemo(
+    () =>
+      channelFilter.length === 0
+        ? clients
+        : clients.filter((c) => channelFilter.includes(c.channelId)),
+    [clients, channelFilter],
+  );
 
   // Markets belong to the traditional channel — only offer the tab when it's in the filter.
   const tradicionalId = channels.find((c) => c.name === "TRADICIONAL")?.id;
@@ -149,14 +160,6 @@ export function ClientTasksMapPage() {
       return next;
     });
 
-  const toggleBlock = (id: string) =>
-    setSelectedBlockIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
   // Add or remove a batch of routes at once (used by the Empleados tab).
   const setRoutesSelected = (ids: string[], selected: boolean) =>
     setSelectedRouteIds((prev) => {
@@ -166,52 +169,83 @@ export function ClientTasksMapPage() {
       return next;
     });
 
-  // Selecting a market contributes its manzanos; deselecting removes them unless
-  // another still-selected market also covers that manzano.
-  const toggleMarket = (market: Market) => {
-    const willSelect = !selectedMarketIds.has(market.id);
+  // Selecting a market only marks it as selected; its manzanos are contributed
+  // through `sourceBlockIds`, so nothing has to be added/removed by hand.
+  const toggleMarket = (market: Market) =>
     setSelectedMarketIds((prev) => {
       const next = new Set(prev);
-      if (willSelect) next.add(market.id);
-      else next.delete(market.id);
+      if (next.has(market.id)) next.delete(market.id);
+      else next.add(market.id);
       return next;
     });
-    setSelectedBlockIds((prev) => {
+
+  // Manzanos contributed by the current route + market selection.
+  const sourceBlockIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of routes) if (selectedRouteIds.has(r.id)) r.blockIds.forEach((id) => s.add(id));
+    for (const m of markets) if (selectedMarketIds.has(m.id)) m.blockIds.forEach((id) => s.add(id));
+    return s;
+  }, [routes, markets, selectedRouteIds, selectedMarketIds]);
+
+  // Effective target set used for the "Clientes seleccionados" count / assign.
+  const targetBlockIds = useMemo(() => {
+    const s = new Set(sourceBlockIds);
+    manualBlockIds.forEach((id) => s.add(id));
+    excludedBlockIds.forEach((id) => s.delete(id));
+    return s;
+  }, [sourceBlockIds, manualBlockIds, excludedBlockIds]);
+
+  // Clicking a manzano: re-include if excluded, exclude if it comes from a
+  // source, otherwise toggle it as a standalone manual pick.
+  const handleBlockClick = (blockId: string) => {
+    if (excludedBlockIds.has(blockId)) {
+      setExcludedBlockIds((prev) => {
+        const next = new Set(prev);
+        next.delete(blockId);
+        return next;
+      });
+      return;
+    }
+    if (sourceBlockIds.has(blockId)) {
+      setExcludedBlockIds((prev) => new Set(prev).add(blockId));
+      return;
+    }
+    setManualBlockIds((prev) => {
       const next = new Set(prev);
-      if (willSelect) {
-        market.blockIds.forEach((id) => next.add(id));
-      } else {
-        const keep = new Set<string>();
-        for (const m of markets) {
-          if (m.id !== market.id && selectedMarketIds.has(m.id))
-            m.blockIds.forEach((id) => keep.add(id));
-        }
-        market.blockIds.forEach((id) => {
-          if (!keep.has(id)) next.delete(id);
-        });
-      }
+      if (next.has(blockId)) next.delete(blockId);
+      else next.add(blockId);
       return next;
     });
   };
 
   const clearSelection = () => {
     setSelectedRouteIds(new Set());
-    setSelectedBlockIds(new Set());
     setSelectedMarketIds(new Set());
+    setManualBlockIds(new Set());
+    setExcludedBlockIds(new Set());
   };
 
-  // If TRADICIONAL leaves the channel filter, drop any market-contributed manzanos.
-  useEffect(() => {
-    if (showMarketsTab || selectedMarketIds.size === 0) return;
-    setSelectedBlockIds((prev) => {
-      const next = new Set(prev);
-      for (const m of markets) {
-        if (selectedMarketIds.has(m.id)) m.blockIds.forEach((id) => next.delete(id));
+  // Fit the camera to the selected routes' manzanos, or to every manzano plus
+  // every visible client when nothing is selected. Only route/channel changes
+  // affect this, so clicking a manzano never moves the camera.
+  const fitPoints = useMemo<LatLng[]>(() => {
+    const pts: LatLng[] = [];
+    const selectedRoutes = routes.filter((r) => selectedRouteIds.has(r.id));
+    if (selectedRoutes.length) {
+      for (const r of selectedRoutes) {
+        for (const id of r.blockIds) blockById.get(id)?.polygon.forEach((p) => pts.push(p));
       }
-      return next;
-    });
-    setSelectedMarketIds(new Set());
-  }, [showMarketsTab, selectedMarketIds, markets]);
+      return pts;
+    }
+    blocks.forEach((b) => b.polygon.forEach((p) => pts.push(p)));
+    visibleClients.forEach((c) => pts.push([c.lat, c.lng]));
+    return pts;
+  }, [routes, selectedRouteIds, blocks, blockById, visibleClients]);
+
+  // If TRADICIONAL leaves the channel filter, drop the market selection.
+  useEffect(() => {
+    if (!showMarketsTab && selectedMarketIds.size > 0) setSelectedMarketIds(new Set());
+  }, [showMarketsTab, selectedMarketIds]);
 
   const canAssign = selectedTaskIds.size > 0 && resolvedClientIds.length > 0;
 
@@ -377,13 +411,15 @@ export function ClientTasksMapPage() {
             {/* CENTER — map */}
             <div ref={mapWrapperRef} className="h-[60vh] min-w-0 flex-1 xl:h-full">
               <ClientTaskMap
-                routes={filteredRoutes}
+                routes={routes}
                 blocks={blocks}
-                clients={clients}
-                selectedRouteIds={selectedRouteIds}
-                selectedBlockIds={selectedBlockIds}
-                onToggleBlock={toggleBlock}
+                clients={visibleClients}
+                sourceBlockIds={sourceBlockIds}
+                manualBlockIds={manualBlockIds}
+                excludedBlockIds={excludedBlockIds}
+                onBlockClick={handleBlockClick}
                 onResolvedClientsChange={setResolvedClientIds}
+                fitPoints={fitPoints}
                 fullscreenTargetRef={mapWrapperRef}
               />
             </div>
@@ -397,7 +433,8 @@ export function ClientTasksMapPage() {
               selectedRouteIds={selectedRouteIds}
               onToggleRoute={toggleRoute}
               onSetRoutesSelected={setRoutesSelected}
-              selectedBlockIds={selectedBlockIds}
+              targetBlockIds={targetBlockIds}
+              excludedBlockIds={excludedBlockIds}
               onClearAll={clearSelection}
               markets={markets}
               selectedMarketIds={selectedMarketIds}

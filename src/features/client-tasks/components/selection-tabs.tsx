@@ -28,7 +28,10 @@ interface SelectionTabsProps {
   onToggleRoute: (id: string) => void;
   /** Add or remove a batch of routes at once (Empleados tab). */
   onSetRoutesSelected: (ids: string[], selected: boolean) => void;
-  selectedBlockIds: Set<string>;
+  /** Manzanos currently in the target set (sources + manual − excluded). */
+  targetBlockIds: Set<string>;
+  /** Manzanos carved out of a source's contribution. */
+  excludedBlockIds: Set<string>;
   /** Clears routes, markets and manzanos from the whole selection. */
   onClearAll: () => void;
   markets: Market[];
@@ -80,7 +83,8 @@ export function SelectionTabs({
   selectedRouteIds,
   onToggleRoute,
   onSetRoutesSelected,
-  selectedBlockIds,
+  targetBlockIds,
+  excludedBlockIds,
   onClearAll,
   markets,
   selectedMarketIds,
@@ -100,7 +104,8 @@ export function SelectionTabs({
     if (!showMarketsTab && active === "mercados") setActive("rutas");
   }, [showMarketsTab, active]);
 
-  const hasSelection = selectedRouteIds.size > 0 || selectedBlockIds.size > 0;
+  const hasSelection =
+    selectedRouteIds.size > 0 || targetBlockIds.size > 0 || excludedBlockIds.size > 0;
 
   // Route ids visible under the current filters — sellers can only contribute these.
   const eligibleRouteIds = useMemo(
@@ -164,9 +169,14 @@ export function SelectionTabs({
             </button>
           )}
         </div>
-        {selectedBlockIds.size > 0 && (
+        {targetBlockIds.size > 0 && (
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Layers className="h-3 w-3" /> {selectedBlockIds.size} manzano(s) seleccionado(s)
+            <Layers className="h-3 w-3" /> {targetBlockIds.size} manzano(s) seleccionado(s)
+          </p>
+        )}
+        {excludedBlockIds.size > 0 && (
+          <p className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400">
+            <X className="h-3 w-3" /> {excludedBlockIds.size} manzano(s) excluido(s)
           </p>
         )}
       </div>
