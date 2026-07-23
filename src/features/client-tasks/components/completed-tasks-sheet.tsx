@@ -58,7 +58,7 @@ function Rating({ value }: { value: number }) {
   );
 }
 
-function CompletionEvidence({ completion }: { completion: CompletedClientTask }) {
+export function CompletionEvidence({ completion }: { completion: CompletedClientTask }) {
   const { response, checkListResponse, ratingResponse, visitTaskPhotos } = completion;
 
   return (

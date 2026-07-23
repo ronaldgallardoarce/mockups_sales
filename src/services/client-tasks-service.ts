@@ -55,6 +55,13 @@ export const clientTasksService = {
       450,
     ),
 
+  /** Every completion (visit response) recorded by a single employee (seller). */
+  listCompletionsByEmployee: (employeeId: number): Promise<CompletedClientTask[]> =>
+    delay(
+      COMPLETIONS.filter((c) => c.employeeId === employeeId),
+      450,
+    ),
+
   create: (input: ClientTaskInput): Promise<ClientTask> => {
     const now = new Date().toISOString();
     const nextId = CLIENT_TASKS.reduce((max, t) => Math.max(max, t.id), 0) + 1;

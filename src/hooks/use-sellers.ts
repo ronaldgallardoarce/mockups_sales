@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { toast } from "sonner";
 import type { Seller, SellerRouteAssignment, SellerStatus } from "@/types";
 import { sellersService, type ListSellersParams } from "@/services/sellers-service";
+import { clientTasksService } from "@/services/client-tasks-service";
 import { queryKeys } from "@/lib/query-client";
 
 export interface UseSellersPagedParams {
@@ -40,6 +41,15 @@ export function useSellerDetail(code: number | undefined) {
   return useQuery({
     queryKey: queryKeys.sellerDetail(code ?? "new"),
     queryFn: () => sellersService.getDetail(code as number),
+    enabled: code !== undefined,
+  });
+}
+
+/** Tasks completed by a single employee (seller), across customers. */
+export function useSellerCompletions(code: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.sellerCompletions(code ?? "none"),
+    queryFn: () => clientTasksService.listCompletionsByEmployee(code as number),
     enabled: code !== undefined,
   });
 }
