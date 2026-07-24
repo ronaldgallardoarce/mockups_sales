@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, ListChecks, Pencil, Users } from "lucide-react";
+import { CalendarClock, Check, ListChecks, Pencil, Users } from "lucide-react";
 import type { ClientTask } from "@/types";
+import { formatDate } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -61,6 +62,15 @@ export function ClientTaskDetailSheet({ task, open, onOpenChange }: ClientTaskDe
               <p className="text-[11px] text-muted-foreground">Obligatoria</p>
               <p className="text-sm font-semibold">{task.required ? "Sí" : "No"}</p>
             </div>
+            {task.dueDate && (
+              <div className="col-span-2 rounded-lg border p-2.5">
+                <p className="text-[11px] text-muted-foreground">Fecha límite</p>
+                <p className="flex items-center gap-1.5 text-sm font-semibold">
+                  <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                  {formatDate(task.dueDate)}
+                </p>
+              </div>
+            )}
           </section>
 
           {task.description.trim() !== "" && (

@@ -36,6 +36,15 @@ export function useClientTask(id: number | undefined) {
   });
 }
 
+/** Completions (visit responses) recorded for a single task, across employees. */
+export function useClientTaskCompletions(taskId: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.clientTaskCompletions(taskId ?? "none"),
+    queryFn: () => clientTasksService.listCompletionsByTask(taskId as number),
+    enabled: taskId !== undefined,
+  });
+}
+
 export function useCreateClientTask() {
   const qc = useQueryClient();
   return useMutation({
@@ -75,6 +84,39 @@ export function useSetClientTaskStatus() {
       });
     },
     onError: (e: Error) => toast.error("No se pudo cambiar el estado", { description: e.message }),
+  });
+}
+
+/** Assign a shared set of clients to one or more tasks at once. */
+export function useAssignClientsToTasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskIds, clientIds }: { taskIds: number[]; clientIds: string[] }) =>
+      Promise.all(taskIds.map((id) => clientTasksService.assignClients(id, clientIds))),
+    onSuccess: (tasks, { clientIds }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.clientTasks });
+      tasks.forEach((t) => qc.invalidateQueries({ queryKey: queryKeys.clientTask(t.id) }));
+      toast.success(
+        tasks.length === 1 ? "Clientes asignados a la tarea" : `Clientes asignados a ${tasks.length} tareas`,
+        { description: `${clientIds.length} cliente(s)` },
+      );
+    },
+    onError: (e: Error) => toast.error("No se pudieron asignar los clientes", { description: e.message }),
+  });
+}
+
+/** Remove one client from a single task. */
+export function useUnassignClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, clientId }: { taskId: number; clientId: string }) =>
+      clientTasksService.unassignClient(taskId, clientId),
+    onSuccess: (task) => {
+      qc.invalidateQueries({ queryKey: queryKeys.clientTasks });
+      qc.invalidateQueries({ queryKey: queryKeys.clientTask(task.id) });
+      toast.success("Cliente quitado de la tarea", { description: task.name });
+    },
+    onError: (e: Error) => toast.error("No se pudo quitar el cliente", { description: e.message }),
   });
 }
 

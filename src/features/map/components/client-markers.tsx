@@ -12,11 +12,14 @@ import { clientPinIcon, highlightPinIcon, clusterIcon } from "../lib/leaflet-set
 export function ClientMarkers({
   clients,
   highlightedClientId,
+  highlightedClientIds,
   onManage,
   manageLabel = "Gestionar cliente",
 }: {
   clients: Client[];
   highlightedClientId?: string;
+  /** Highlight a whole set of clients at once (e.g. a resolved target set). */
+  highlightedClientIds?: Set<string>;
   /**
    * When provided, each pin's popup shows an action that hands the client back
    * to the parent (e.g. to open a management modal). The map stays domain-free.
@@ -52,7 +55,8 @@ export function ClientMarkers({
             }
           >
             {list.map((client) => {
-              const isHighlighted = client.id === highlightedClientId;
+              const isHighlighted =
+                client.id === highlightedClientId || !!highlightedClientIds?.has(client.id);
               const icon = isHighlighted ? highlightPinIcon(color) : clientPinIcon(color);
               return (
                 <Marker key={client.id} position={[client.lat, client.lng]} icon={icon}>

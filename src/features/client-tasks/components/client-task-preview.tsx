@@ -1,6 +1,6 @@
-import { Check } from "lucide-react";
+import { CalendarClock, Check } from "lucide-react";
 import type { ClientTaskType } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { ClientTaskTypeBadge } from "./client-task-type-badge";
 
 interface ClientTaskPreviewProps {
@@ -11,6 +11,7 @@ interface ClientTaskPreviewProps {
   color: string;
   order: number;
   required: boolean;
+  dueDate?: string;
 }
 
 /** Live preview of how the task will look on the client's card during a visit. */
@@ -22,6 +23,7 @@ export function ClientTaskPreview({
   color,
   order,
   required,
+  dueDate,
 }: ClientTaskPreviewProps) {
   const items = checklistItems.filter((i) => i.trim() !== "");
 
@@ -66,6 +68,12 @@ export function ClientTaskPreview({
 
           {description.trim() !== "" && (
             <p className="text-xs text-muted-foreground">{description}</p>
+          )}
+
+          {dueDate && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <CalendarClock className="h-3.5 w-3.5" /> Vence: {formatDate(dueDate)}
+            </p>
           )}
 
           {type === "checklist" && (

@@ -1,5 +1,5 @@
 // LayoutDashboard stays imported-commented for the disabled nav item below.
-import { ClipboardList, Layers, /* LayoutDashboard, */ ListChecks, Map, Route, Store, Users, type LucideIcon } from "lucide-react";
+import { ClipboardList, Layers, /* LayoutDashboard, */ Map, Route, Store, Users, type LucideIcon } from "lucide-react";
 import type { Role } from "@/types";
 
 export interface NavItem {
@@ -53,13 +53,7 @@ export const NAV_ITEMS: NavItem[] = [
     title: "Tareas por Cliente",
     to: "/client-tasks",
     icon: ClipboardList,
-    description: "Tareas que se muestran en la ficha del cliente",
-  },
-  {
-    title: "Tareas Generales",
-    to: "/general-tasks",
-    icon: ListChecks,
-    description: "Tareas asignadas a los vendedores",
+    description: "Asigna tareas a los clientes sobre el mapa",
   },
 ];
 

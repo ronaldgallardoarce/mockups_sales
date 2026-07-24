@@ -30,10 +30,13 @@ export const queryKeys = {
     ["sellers", "paged", params] as const,
   seller: (code: number | string) => ["sellers", code] as const,
   sellerDetail: (code: number | string) => ["sellers", code, "detail"] as const,
+  sellerCompletions: (code: number | string) => ["sellers", code, "completions"] as const,
   clientTasks: ["client-tasks"] as const,
   clientTasksPaged: (params: { page: number; limit: number; status: string; type: string; search: string }) =>
     ["client-tasks", "paged", params] as const,
   clientTask: (id: number | string) => ["client-tasks", id] as const,
+  clientTaskCompletions: (taskId: number | string) =>
+    ["client-tasks", taskId, "completions"] as const,
   generalTasks: ["general-tasks"] as const,
   generalTasksPaged: (params: { page: number; limit: number; status: string; priority: string; search: string }) =>
     ["general-tasks", "paged", params] as const,

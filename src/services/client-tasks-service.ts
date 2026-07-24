@@ -1,5 +1,5 @@
-import type { ClientTask, ClientTaskInput, ClientTaskType, TaskStatus } from "@/types";
-import { SEED_CLIENT_TASKS } from "@/data/seed";
+import type { ClientTask, ClientTaskInput, ClientTaskType, CompletedClientTask, TaskStatus } from "@/types";
+import { SEED_CLIENT_TASKS, SEED_CLIENT_TASK_COMPLETIONS } from "@/data/seed";
 import { delay } from "@/lib/utils";
 import type { Paginated } from "./routes-service";
 
@@ -16,6 +16,7 @@ export interface ListClientTasksParams {
  * Kept module level so mutations survive navigation within the session.
  */
 let CLIENT_TASKS: ClientTask[] = [...SEED_CLIENT_TASKS];
+const COMPLETIONS: CompletedClientTask[] = [...SEED_CLIENT_TASK_COMPLETIONS];
 
 export const clientTasksService = {
   list: (): Promise<ClientTask[]> => delay([...CLIENT_TASKS], 500),
@@ -47,6 +48,20 @@ export const clientTasksService = {
   get: (id: number): Promise<ClientTask | undefined> =>
     delay(CLIENT_TASKS.find((t) => t.id === id), 300),
 
+  /** Every completion (visit response) recorded for a single task. */
+  listCompletionsByTask: (taskId: number): Promise<CompletedClientTask[]> =>
+    delay(
+      COMPLETIONS.filter((c) => c.visitTaskId === taskId),
+      450,
+    ),
+
+  /** Every completion (visit response) recorded by a single employee (seller). */
+  listCompletionsByEmployee: (employeeId: number): Promise<CompletedClientTask[]> =>
+    delay(
+      COMPLETIONS.filter((c) => c.employeeId === employeeId),
+      450,
+    ),
+
   create: (input: ClientTaskInput): Promise<ClientTask> => {
     const now = new Date().toISOString();
     const nextId = CLIENT_TASKS.reduce((max, t) => Math.max(max, t.id), 0) + 1;
@@ -60,6 +75,7 @@ export const clientTasksService = {
       order: input.order,
       required: input.required,
       status: input.status ?? "active",
+      dueDate: input.dueDate || undefined,
       assignScope: input.assignScope,
       clientIds: input.clientIds,
       createdAt: now,
@@ -84,6 +100,7 @@ export const clientTasksService = {
         order: input.order,
         required: input.required,
         status: input.status ?? t.status,
+        dueDate: input.dueDate || undefined,
         assignScope: input.assignScope,
         clientIds: input.clientIds,
         updatedAt: now,
@@ -107,5 +124,35 @@ export const clientTasksService = {
   remove: (id: number): Promise<{ id: number }> => {
     CLIENT_TASKS = CLIENT_TASKS.filter((t) => t.id !== id);
     return delay({ id }, 400);
+  },
+
+  /**
+   * Assign a set of clients to a task. Forces the task into the "some" scope and
+   * merges the ids into the existing target set (deduplicated).
+   */
+  assignClients: (taskId: number, clientIds: string[]): Promise<ClientTask> => {
+    const now = new Date().toISOString();
+    let updated: ClientTask | undefined;
+    CLIENT_TASKS = CLIENT_TASKS.map((t) => {
+      if (t.id !== taskId) return t;
+      const merged = [...new Set([...t.clientIds, ...clientIds])];
+      updated = { ...t, assignScope: "some", clientIds: merged, updatedAt: now };
+      return updated;
+    });
+    if (!updated) return Promise.reject(new Error("Tarea no encontrada"));
+    return delay(updated, 400);
+  },
+
+  /** Remove a single client from a task's target set. */
+  unassignClient: (taskId: number, clientId: string): Promise<ClientTask> => {
+    const now = new Date().toISOString();
+    let updated: ClientTask | undefined;
+    CLIENT_TASKS = CLIENT_TASKS.map((t) =>
+      t.id !== taskId
+        ? t
+        : (updated = { ...t, clientIds: t.clientIds.filter((id) => id !== clientId), updatedAt: now }),
+    );
+    if (!updated) return Promise.reject(new Error("Tarea no encontrada"));
+    return delay(updated, 300);
   },
 };

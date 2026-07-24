@@ -1,4 +1,4 @@
-import type { Block, Client, ClientTask, ClientTaskType, DayCode, FrequencyType, GeneralTask, GeneralTaskResponseType, MacroRouteRef, Market, Polygon, Route, RouteFrequency, RouteMacro, Seller, SellerRouteAssignment, TaskPriority, WeekPosition } from "@/types";
+import type { Block, Client, ClientTask, ClientTaskType, CompletedClientTask, DayCode, FrequencyType, GeneralTask, GeneralTaskResponseType, MacroRouteRef, Market, Polygon, Route, RouteFrequency, RouteMacro, Seller, SellerRouteAssignment, TaskPriority, WeekPosition } from "@/types";
 import { CITIES, DEPARTMENT_NAME } from "./locations";
 import { numId, seededRandom } from "@/lib/utils";
 import { pointInPolygon } from "@/lib/geo";
@@ -329,8 +329,6 @@ const CLIENT_TASK_NAMES: { name: string; description: string; type: ClientTaskTy
   { name: "Checklist de limpieza", description: "Verifica el estado del punto de venta.", type: "checklist" },
   { name: "Checklist de material POP", description: "Confirma la presencia del material publicitario.", type: "checklist" },
   { name: "Calificación de atención", description: "Califica la atención recibida en el punto.", type: "calificacion" },
-  { name: "Precio de la competencia", description: "Registra los precios de productos de la competencia.", type: "precio_competencia" },
-  { name: "Inventario faltante", description: "Marca los productos agotados en góndola.", type: "inventario_faltante" },
   { name: "Foto de heladera", description: "Foto del estado de la heladera de la marca.", type: "foto" },
   { name: "Checklist de vencimientos", description: "Revisa productos próximos a vencer.", type: "checklist" },
 ];
@@ -359,6 +357,13 @@ function buildClientTasks(): ClientTask[] {
       }
     }
     const created = new Date(2026, Math.floor(rand() * 6), Math.floor(between(1, 27)));
+    // Roughly half the tasks carry a deadline a few days/weeks after creation.
+    const dueDate =
+      rand() < 0.55
+        ? new Date(created.getTime() + Math.floor(between(3, 45)) * 86_400_000)
+            .toISOString()
+            .slice(0, 10)
+        : undefined;
     tasks.push({
       id: i + 1,
       name: base.name,
@@ -369,6 +374,7 @@ function buildClientTasks(): ClientTask[] {
       order: i + 1,
       required: rand() < 0.6,
       status: rand() < 0.8 ? "active" : "inactive",
+      dueDate,
       assignScope: scopeAll ? "all" : "some",
       clientIds,
       createdAt: created.toISOString(),
@@ -379,6 +385,67 @@ function buildClientTasks(): ClientTask[] {
 }
 
 export const SEED_CLIENT_TASKS: ClientTask[] = buildClientTasks();
+
+// ---- Completed client tasks (visit responses) ------------------------------
+const COMPLETION_NOTES = [
+  "Tarea completada",
+  "Realizado sin novedad",
+  "Vitrina en orden y surtida",
+  "Cliente atendido correctamente",
+  "Se dejó material POP",
+  "Exhibición actualizada",
+];
+
+function buildClientTaskCompletions(): CompletedClientTask[] {
+  const completions: CompletedClientTask[] = [];
+  const activeSellers = SEED_SELLERS.filter((s) => s.status === "ACTIVO");
+  const sellerPool = activeSellers.length ? activeSellers : SEED_SELLERS;
+  let visitId = 1;
+
+  for (const task of SEED_CLIENT_TASKS) {
+    // Only some tasks have been completed so far.
+    if (rand() < 0.25) continue;
+    const n = 1 + Math.floor(rand() * 4); // 1..4 completions by different employees
+    // Prefer the task's targeted clients, else any client.
+    const clientPool =
+      task.assignScope === "some" && task.clientIds.length
+        ? SEED_CLIENTS.filter((c) => task.clientIds.includes(c.id))
+        : SEED_CLIENTS;
+    const pool = clientPool.length ? clientPool : SEED_CLIENTS;
+
+    for (let k = 0; k < n; k++) {
+      const seller = pick(sellerPool);
+      const client = pick(pool);
+      completions.push({
+        customerId: numId(client.id),
+        customerName: client.name,
+        ownerId: numId(client.id),
+        ownerName: client.ownerName,
+        employeeId: seller.code,
+        employeeName: seller.name,
+        visitId: visitId++,
+        visitTaskId: task.id,
+        response:
+          task.type === "texto" || task.type === "foto" ? pick(COMPLETION_NOTES) : null,
+        checkListResponse:
+          task.type === "checklist"
+            ? task.checklistItems.map((item) => ({ item, checked: rand() < 0.75 }))
+            : null,
+        ratingResponse: task.type === "calificacion" ? 1 + Math.floor(rand() * 5) : null,
+        visitTaskPhotos:
+          task.type === "foto"
+            ? Array.from({ length: 1 + Math.floor(rand() * 3) }, (_, i) => ({
+                id: i + 1,
+                url: "url",
+              }))
+            : [],
+      });
+    }
+  }
+  return completions;
+}
+
+export const SEED_CLIENT_TASK_COMPLETIONS: CompletedClientTask[] = buildClientTaskCompletions();
 
 // ---- Tareas generales ------------------------------------------------------
 const GENERAL_TASK_ITEMS: { title: string; description: string; responseType: GeneralTaskResponseType }[] = [

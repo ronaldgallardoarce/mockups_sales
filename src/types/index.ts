@@ -332,21 +332,13 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
 export const ALL_TASK_PRIORITIES: TaskPriority[] = ["baja", "normal", "alta", "urgente"];
 
 /** Kind of answer a per-client task expects on the field. */
-export type ClientTaskType =
-  | "foto"
-  | "texto"
-  | "checklist"
-  | "calificacion"
-  | "precio_competencia"
-  | "inventario_faltante";
+export type ClientTaskType = "foto" | "texto" | "checklist" | "calificacion";
 
 export const CLIENT_TASK_TYPE_LABELS: Record<ClientTaskType, string> = {
   foto: "Foto",
   texto: "Texto",
   checklist: "Checklist",
   calificacion: "Calificación",
-  precio_competencia: "Precio competencia",
-  inventario_faltante: "Inventario / faltante",
 };
 
 export const ALL_CLIENT_TASK_TYPES: ClientTaskType[] = [
@@ -354,8 +346,6 @@ export const ALL_CLIENT_TASK_TYPES: ClientTaskType[] = [
   "texto",
   "checklist",
   "calificacion",
-  "precio_competencia",
-  "inventario_faltante",
 ];
 
 /** Kind of answer a general task expects. */
@@ -402,6 +392,8 @@ export interface ClientTask {
   /** Whether answering the task is mandatory. */
   required: boolean;
   status: TaskStatus;
+  /** Optional deadline (YYYY-MM-DD). */
+  dueDate?: string;
   /** "all" = every client; "some" = only `clientIds`. */
   assignScope: TaskAssignScope;
   /** Target client ids when assignScope === "some". */
@@ -420,8 +412,43 @@ export interface ClientTaskInput {
   order: number;
   required: boolean;
   status?: TaskStatus;
+  dueDate?: string;
   assignScope: TaskAssignScope;
   clientIds: string[];
+}
+
+/** A single photo captured while completing a task during a visit. */
+export interface VisitTaskPhoto {
+  id: number;
+  url: string;
+}
+
+/** One checklist entry answered while completing a task. */
+export interface ChecklistAnswer {
+  item: string;
+  checked: boolean;
+}
+
+/**
+ * A completed client-task: the answer an employee (seller) recorded for a task
+ * during a visit to a customer. `visitTaskId` points at the `ClientTask.id`.
+ * Only the field matching the task's `type` is filled; the rest stay null/empty.
+ */
+export interface CompletedClientTask {
+  customerId: number;
+  customerName: string;
+  /** Owner (person) of the customer store. */
+  ownerId: number;
+  ownerName: string;
+  /** Employee (seller) who performed the task. */
+  employeeId: number;
+  employeeName: string;
+  visitId: number;
+  visitTaskId: number;
+  response: string | null;
+  checkListResponse: ChecklistAnswer[] | null;
+  ratingResponse: number | null;
+  visitTaskPhotos: VisitTaskPhoto[];
 }
 
 /**

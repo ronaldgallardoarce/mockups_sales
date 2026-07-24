@@ -7,19 +7,13 @@ export const clientTaskSchema = z
       .min(3, "El nombre debe tener al menos 3 caracteres")
       .max(60, "Máximo 60 caracteres"),
     description: z.string().max(300, "Máximo 300 caracteres").default(""),
-    type: z.enum([
-      "foto",
-      "texto",
-      "checklist",
-      "calificacion",
-      "precio_competencia",
-      "inventario_faltante",
-    ]),
+    type: z.enum(["foto", "texto", "checklist", "calificacion"]),
     checklistItems: z.array(z.string()).default([]),
     color: z.string().regex(/^#([0-9a-fA-F]{6})$/, "Color inválido"),
     order: z.number().min(1, "El orden debe ser al menos 1"),
     required: z.boolean(),
     status: z.enum(["active", "inactive"]),
+    dueDate: z.string().optional().default(""),
     assignScope: z.enum(["all", "some"]),
     clientIds: z.array(z.string()).default([]),
   })

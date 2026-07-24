@@ -13,10 +13,7 @@ import { ClientsPage } from "@/features/clients/pages/clients-page";
 import { SellersPage } from "@/features/sellers/pages/sellers-page";
 import { SellerDetailPage } from "@/features/sellers/pages/seller-detail-page";
 import { SellerAssignRoutePage } from "@/features/sellers/pages/seller-assign-route-page";
-import { ClientTasksListPage } from "@/features/client-tasks/pages/client-tasks-list-page";
-import { ClientTaskFormPage } from "@/features/client-tasks/pages/client-task-form-page";
-import { GeneralTasksListPage } from "@/features/general-tasks/pages/general-tasks-list-page";
-import { GeneralTaskFormPage } from "@/features/general-tasks/pages/general-task-form-page";
+import { ClientTasksMapPage } from "@/features/client-tasks/pages/client-tasks-map-page";
 
 export function App() {
   return (
@@ -38,12 +35,7 @@ export function App() {
         <Route path="sellers" element={<SellersPage />} />
         <Route path="sellers/:code" element={<SellerDetailPage />} />
         <Route path="sellers/:code/assign" element={<SellerAssignRoutePage />} />
-        <Route path="client-tasks" element={<ClientTasksListPage />} />
-        <Route path="client-tasks/new" element={<ClientTaskFormPage />} />
-        <Route path="client-tasks/:id/edit" element={<ClientTaskFormPage />} />
-        <Route path="general-tasks" element={<GeneralTasksListPage />} />
-        <Route path="general-tasks/new" element={<GeneralTaskFormPage />} />
-        <Route path="general-tasks/:id/edit" element={<GeneralTaskFormPage />} />
+        <Route path="client-tasks" element={<ClientTasksMapPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
